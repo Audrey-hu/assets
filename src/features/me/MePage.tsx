@@ -16,7 +16,7 @@ import { CloudSyncSection } from "./CloudSyncSection";
 import { useSync } from "@/store/sync-store";
 
 export function MePage() {
-  const { data, settings, storage, updateSettings, clearDemoData, loadDemoData, reload, notify } =
+  const { data, settings, storage, updateSettings, clearAllData, loadDemoData, reload, notify } =
     useApp();
   const { askConfirm } = useUI();
   const { session: cloudSession } = useSync();
@@ -114,6 +114,14 @@ export function MePage() {
               description="影响日历与本周统计。"
             />
           </div>
+          <div className="py-3">
+            <Switch
+              checked={settings.seedDemo !== false}
+              onCheckedChange={(value) => updateSettings({ seedDemo: value })}
+              label="新设备首次打开时生成示例数据"
+              description="关掉之后，这台设备（或新设备）第一次打开就是空白的。"
+            />
+          </div>
         </Card>
       </section>
 
@@ -193,41 +201,59 @@ export function MePage() {
           />
         </div>
 
-        <div className="mt-2 grid gap-2 sm:grid-cols-2">
-          <Button
-            variant="outline"
-            size="lg"
-            onClick={() =>
-              askConfirm({
-                title: "载入示例数据？",
-                description: "会在现有数据之上加入一组 Demo 内容。",
-                confirmLabel: "载入",
-                onConfirm: loadDemoData,
-              })
-            }
-          >
-            <RotateCcw className="size-4" />
-            载入 Demo 数据
-          </Button>
-          <Button
-            variant="destructive"
-            size="lg"
-            onClick={() =>
-              askConfirm({
-                title: "清空所有数据？",
-                description: cloudSession
-                  ? "兴趣、Journey、记录、照片、存款都会删除，无法恢复。云同步已开启，云端内容也会一起清空。建议先导出备份。"
-                  : "兴趣、Journey、记录、照片、存款都会删除，无法恢复。建议先导出备份。",
-                confirmLabel: "清空",
-                destructive: true,
-                onConfirm: clearDemoData,
-              })
-            }
-          >
-            <Trash2 className="size-4" />
-            Clear Demo Data
-          </Button>
-        </div>
+      </section>
+
+      <section className="pt-7">
+        <SectionHeader title="重新开始" hint="把应用恢复到全新的状态" />
+        <Card className="space-y-4 p-5">
+          <p className="text-[13px] leading-relaxed text-muted-foreground">
+            数据存在这台设备的浏览器里，不上云（除非你自己开了云同步）。
+            想要一个干净的账本，就在下面清空；想先看看完整的界面长什么样，随时可以再载入示例数据。
+          </p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() =>
+                askConfirm({
+                  title: "载入示例数据？",
+                  description:
+                    "会在现有数据之上加入一组 Demo 内容（架子鼓、SQE1、存款等）。已有记录不会被删除。",
+                  confirmLabel: "载入",
+                  onConfirm: loadDemoData,
+                })
+              }
+            >
+              <RotateCcw className="size-4" />
+              载入示例数据
+            </Button>
+            <Button
+              variant="destructive"
+              size="lg"
+              onClick={() =>
+                askConfirm({
+                  title: "清空所有数据？",
+                  description: cloudSession
+                    ? "这台设备上的兴趣、Journey、阶段、记录、照片、存款会全部永久删除，无法恢复。云同步已开启，云端内容也会一起清空。建议先导出备份。"
+                    : "这台设备上的兴趣、Journey、阶段、记录、照片、存款会全部永久删除，无法恢复。建议先导出备份。",
+                  confirmLabel: "永久删除",
+                  destructive: true,
+                  onConfirm: async () => {
+                    await clearAllData();
+                    navigate("#/today");
+                  },
+                })
+              }
+            >
+              <Trash2 className="size-4" />
+              清空所有数据
+            </Button>
+          </div>
+          <p className="text-[12px] leading-relaxed text-muted-foreground">
+            只清空这一台设备。如果你在手机上也记过东西，需要在那边同样操作一次
+            —— 每台设备的数据是各自独立的。
+          </p>
+        </Card>
       </section>
 
       <section className="pt-7">

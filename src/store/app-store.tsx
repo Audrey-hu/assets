@@ -93,7 +93,8 @@ interface AppContextValue {
   addPhotos: (files: File[], ownerEventId?: ID) => Promise<ID[]>;
   deletePhotos: (ids: ID[]) => Promise<void>;
 
-  clearDemoData: () => Promise<void>;
+  /** 清空这台设备上的全部数据 */
+  clearAllData: () => Promise<void>;
   loadDemoData: () => Promise<void>;
   reload: () => Promise<void>;
 }
@@ -159,7 +160,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
        * 那些"刚刚创建"的 Demo 记录会在首次同步时盖掉云端更早的真实记录。
        */
       const cloudSession = await getSession().catch(() => null);
-      if (isEmpty && !seeded && !cloudSession) {
+      if (isEmpty && !seeded && !cloudSession && loadSettings().seedDemo !== false) {
         const demo = buildDemoData();
         await Promise.all([
           putMany("hobbies", demo.hobbies),
@@ -493,7 +494,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   /* ------------------------------- reset ------------------------------- */
 
-  const clearDemoData = useCallback(async () => {
+  const clearAllData = useCallback(async () => {
     await clearStores([
       "hobbies",
       "journeys",
@@ -511,7 +512,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await setMeta("seeded", true);
     setData(EMPTY);
     updateSettings({ demoSeeded: true });
-    notify("示例数据已清空");
+    notify("已清空，现在是全新的开始", "success");
   }, [notify, updateSettings]);
 
   const loadDemoData = useCallback(async () => {
@@ -563,7 +564,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       deleteSavingsTx,
       addPhotos,
       deletePhotos,
-      clearDemoData,
+      clearAllData,
       loadDemoData,
       reload,
     }),
@@ -596,7 +597,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       deleteSavingsTx,
       addPhotos,
       deletePhotos,
-      clearDemoData,
+      clearAllData,
       loadDemoData,
       reload,
     ],

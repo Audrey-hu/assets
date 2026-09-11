@@ -291,6 +291,8 @@ export interface Settings {
   theme: "light" | "dark";
   weekStartsOn: 0 | 1;
   demoSeeded: boolean;
+  /** 新设备第一次打开时，是否自动生成一组示例数据 */
+  seedDemo: boolean;
   lastBackupAt?: string;
 }
 

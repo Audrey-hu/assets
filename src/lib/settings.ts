@@ -10,6 +10,7 @@ export const defaultSettings: Settings = {
   theme: "light",
   weekStartsOn: 1,
   demoSeeded: false,
+  seedDemo: true,
 };
 
 export function loadSettings(): Settings {
