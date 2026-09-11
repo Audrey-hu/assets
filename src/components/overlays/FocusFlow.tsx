@@ -22,7 +22,7 @@ import type { LifeEvent, Mood, TimeCategory } from "@/lib/types";
 type SetupTab = "hobby" | "journey" | "sideproject" | "life";
 
 export function FocusSetupSheet() {
-  const { modal, closeModal } = useUI();
+  const { modal, closeModal, openModal } = useUI();
   const open = modal === "focusSetup";
   const { data } = useApp();
   const { startFocus } = useFocus();
@@ -183,9 +183,18 @@ export function FocusSetupSheet() {
           </Field>
         </SheetBody>
         <SheetFooter className="flex items-center justify-between gap-2">
-          <span className="text-[12.5px] text-muted-foreground">
-            {planned === null ? "自由计时" : `计划 ${fmtMinutes(planned)}`}
-          </span>
+          <button
+            type="button"
+            onClick={() =>
+              openModal("quickTime", {
+                hobbyId: tab === "hobby" ? selected : undefined,
+                journeyId: tab === "journey" || tab === "sideproject" ? selected : undefined,
+              })
+            }
+            className="max-w-[52%] text-left text-[12.5px] text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+          >
+            已经做完了？直接补记时长 →
+          </button>
           <Button
             size="lg"
             onClick={handleStart}

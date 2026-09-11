@@ -29,9 +29,9 @@ export function QuickAddSheet() {
     {
       key: "time",
       label: "Log Time",
-      hint: "补记一段时间",
+      hint: "补记一段时长",
       icon: Timer,
-      run: () => openModal("event", { lockType: "session", initial: { durationMin: 30 } }),
+      run: () => openModal("quickTime"),
     },
     {
       key: "expense",

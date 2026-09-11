@@ -52,7 +52,7 @@ LifeEvent {
 | **Journey** | 成长（阶段、长期时间轴、趋势曲线）/ 兴趣（累计时间、Cost per Hour、课程利用率、照片时间线） |
 | **Ledger** | 存款（蓄水池 / 备用金 / 定期存单 / 到期时间轴 / 增长曲线 / 里程碑）、业余收入（净收入与时薪）、After Work 时间账户 |
 | **Assets** | 沉淀资产，以及 From Investment to Asset 关系链 |
-| **其他** | Focus Timer、Session 小结、照片、Calendar、Monthly Review、Life Moments、全局搜索、JSON 导入导出、PWA |
+| **其他** | Focus Timer、**补记时长**（不打计时器，直接填"我练了多久"）、Session 小结、照片、Calendar、Monthly Review、Life Moments、全局搜索、JSON 导入导出、PWA |
 
 ## 云同步（可选）
 

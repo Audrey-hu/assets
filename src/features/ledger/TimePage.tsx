@@ -6,7 +6,7 @@ import { CategoryBar, CategoryLegend, TrendChart } from "@/components/charts";
 import { useApp } from "@/store/app-store";
 import { useEditors, useUI } from "@/store/ui-store";
 import { categoryBreakdown, eventsBetween, inferTimeCategory, startOfWeekLocal } from "@/lib/stats";
-import { fmtHours, fmtMinutes, fmtRelativeDays, todayISO } from "@/lib/format";
+import { fmtHours, fmtMinutes, fmtRelativeDays } from "@/lib/format";
 import { TIME_CATEGORY } from "@/lib/labels";
 import { subDays, endOfDay, startOfDay, format } from "date-fns";
 
@@ -14,7 +14,7 @@ const QUICK_MINUTES = [30, 60, 90, 120, 180];
 
 export function TimePage() {
   const { data } = useApp();
-  const { newEvent } = useEditors();
+  const { logTime } = useEditors();
   const { openModal } = useUI();
 
   const now = new Date();
@@ -83,17 +83,17 @@ export function TimePage() {
               key={minutes}
               size="pill"
               variant="outline"
-              onClick={() =>
-                newEvent({
-                  lockType: "session",
-                  initial: { durationMin: minutes, date: todayISO() },
-                })
-              }
+              onClick={() => logTime({ durationMin: minutes })}
             >
               + {minutes >= 60 ? `${minutes / 60}h` : `${minutes}m`}
             </Button>
           ))}
-          <Button size="pill" variant="ghost" className="text-muted-foreground" onClick={() => newEvent()}>
+          <Button
+            size="pill"
+            variant="ghost"
+            className="text-muted-foreground"
+            onClick={() => logTime()}
+          >
             <Plus className="size-3.5" />
             自定义
           </Button>

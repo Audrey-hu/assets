@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
 
 export type ModalName =
   | "quickAdd"
+  | "quickTime"
   | "search"
   | "focusSetup"
   | "event"
@@ -78,6 +79,8 @@ export function useEditors() {
   return useMemo(
     () => ({
       newEvent: (payload: Record<string, unknown> = {}) => openModal("event", payload),
+      /** 不打计时器，直接补记一段时间 */
+      logTime: (payload: Record<string, unknown> = {}) => openModal("quickTime", payload),
       newExpense: (payload: Record<string, unknown> = {}) =>
         openModal("event", { ...payload, lockType: "expense" }),
       newIncome: (payload: Record<string, unknown> = {}) =>

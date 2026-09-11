@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { MoreHorizontal, Pencil, Play, Plus } from "lucide-react";
+import { MoreHorizontal, NotebookPen, Pencil, Play, Plus } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,7 +34,7 @@ const METRIC_LABEL: Record<Metric, string> = {
 export function JourneyDetailPage({ journeyId }: { journeyId: string }) {
   const { data } = useApp();
   const { openModal } = useUI();
-  const { newExpense, newNote } = useEditors();
+  const { newExpense, newNote, logTime } = useEditors();
   const { startFocus } = useFocus();
   const [metric, setMetric] = useState<Metric>("minutes");
 
@@ -117,6 +117,10 @@ export function JourneyDetailPage({ journeyId }: { journeyId: string }) {
         >
           <Play className="size-3.5" />
           Study Session
+        </Button>
+        <Button size="pill" variant="outline" onClick={() => logTime({ journeyId: journey.id })}>
+          <NotebookPen className="size-3.5" />
+          补记时长
         </Button>
         <Button size="pill" variant="outline" onClick={() => newExpense({ initial: { journeyId: journey.id } })}>
           记一笔支出

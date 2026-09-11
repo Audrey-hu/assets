@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { MoreHorizontal, Play, Plus, Receipt, Timer } from "lucide-react";
+import { MoreHorizontal, NotebookPen, Play, Plus, Receipt, Timer } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,7 +24,7 @@ import { uid } from "@/lib/utils";
 export function HobbyDetailPage({ hobbyId }: { hobbyId: string }) {
   const { data, saveCourse, saveEvent, notify } = useApp();
   const { openModal } = useUI();
-  const { newExpense, newNote, newMilestone } = useEditors();
+  const { newExpense, newNote, newMilestone, logTime } = useEditors();
   const { startFocus } = useFocus();
 
   const hobby = data.hobbies.find((h) => h.id === hobbyId);
@@ -139,6 +139,10 @@ export function HobbyDetailPage({ hobbyId }: { hobbyId: string }) {
         >
           <Timer className="size-3.5" />
           25 min
+        </Button>
+        <Button size="pill" variant="outline" onClick={() => logTime({ hobbyId: hobby.id })}>
+          <NotebookPen className="size-3.5" />
+          补记时长
         </Button>
         <Button size="pill" variant="outline" onClick={() => newExpense({ initial: { hobbyId: hobby.id } })}>
           <Receipt className="size-3.5" />

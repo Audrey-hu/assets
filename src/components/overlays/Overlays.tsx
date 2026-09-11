@@ -3,6 +3,7 @@ import { DialogContent, DialogHeader } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useUI } from "@/store/ui-store";
 import { QuickAddSheet } from "./QuickAddSheet";
+import { QuickTimeSheet } from "./QuickTimeSheet";
 import { SearchSheet } from "./SearchSheet";
 import { FocusSetupSheet, FocusTimerOverlay, SessionSummarySheet } from "./FocusFlow";
 import { EventEditor } from "@/components/editors/EventEditor";
@@ -45,6 +46,7 @@ export function Overlays() {
   return (
     <>
       <QuickAddSheet />
+      <QuickTimeSheet />
       <SearchSheet />
       <FocusSetupSheet />
       <EventEditor />

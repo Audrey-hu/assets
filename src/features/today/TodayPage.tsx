@@ -22,7 +22,7 @@ import type { Hobby, Journey } from "@/lib/types";
 export function TodayPage() {
   const { data, settings } = useApp();
   const { openModal } = useUI();
-  const { newEvent } = useEditors();
+  const { newEvent, logTime } = useEditors();
   const { startFocus } = useFocus();
 
   const today = todayISO();
@@ -32,7 +32,8 @@ export function TodayPage() {
     () =>
       data.events
         .filter((e) => e.date === today)
-        .sort((a, b) => (a.startTime ?? "").localeCompare(b.startTime ?? "")),
+        /* 没有具体时间的（例如事后补记的时长）排在最后 */
+        .sort((a, b) => (a.startTime ?? "99:99").localeCompare(b.startTime ?? "99:99")),
     [data.events, today],
   );
 
@@ -128,10 +129,15 @@ export function TodayPage() {
               title="今天还没有留下记录。"
               description="不着急。想起来的时候，从一次专注开始。"
               action={
-                <Button size="pill" onClick={() => openModal("focusSetup")}>
-                  <Play className="size-3.5" />
-                  Start a session
-                </Button>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <Button size="pill" onClick={() => openModal("focusSetup")}>
+                    <Play className="size-3.5" />
+                    Start a session
+                  </Button>
+                  <Button size="pill" variant="outline" onClick={() => logTime()}>
+                    补记时长
+                  </Button>
+                </div>
               }
             />
           </Card>
