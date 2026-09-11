@@ -1,0 +1,189 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* warm ivory paper */
+    --background: 40 24% 96%;
+    --foreground: 40 6% 11%;
+
+    --card: 40 33% 98%;
+    --card-foreground: 40 6% 11%;
+
+    --popover: 40 33% 99%;
+    --popover-foreground: 40 6% 11%;
+
+    --primary: 152 23% 26%;
+    --primary-foreground: 40 30% 97%;
+
+    --secondary: 40 18% 92%;
+    --secondary-foreground: 40 8% 22%;
+
+    --muted: 40 16% 92%;
+    --muted-foreground: 35 7% 44%;
+
+    --accent: 148 16% 90%;
+    --accent-foreground: 152 23% 22%;
+
+    --destructive: 6 42% 45%;
+    --destructive-foreground: 40 30% 97%;
+
+    --border: 40 13% 87%;
+    --input: 40 13% 85%;
+    --ring: 152 20% 42%;
+
+    --radius: 0.875rem;
+
+    /* accent vocabulary — all low saturation */
+    --clay: 20 29% 51%;
+    --steel: 214 14% 49%;
+    --sand: 35 27% 68%;
+    --mauve: 258 9% 55%;
+    --sage: 140 15% 56%;
+  }
+
+  .dark {
+    --background: 40 6% 9%;
+    --foreground: 40 20% 94%;
+
+    --card: 40 6% 12%;
+    --card-foreground: 40 20% 94%;
+
+    --popover: 40 6% 12%;
+    --popover-foreground: 40 20% 94%;
+
+    --primary: 145 20% 62%;
+    --primary-foreground: 40 8% 10%;
+
+    --secondary: 40 5% 18%;
+    --secondary-foreground: 40 18% 90%;
+
+    --muted: 40 5% 17%;
+    --muted-foreground: 40 8% 62%;
+
+    --accent: 150 8% 20%;
+    --accent-foreground: 145 18% 78%;
+
+    --destructive: 6 40% 52%;
+    --destructive-foreground: 40 20% 96%;
+
+    --border: 40 6% 20%;
+    --input: 40 6% 22%;
+    --ring: 145 20% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    overscroll-behavior-y: none;
+    overflow-x: hidden;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply tracking-[-0.011em];
+  }
+
+  /* quiet scrollbars */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  input,
+  textarea,
+  select {
+    font-size: 16px; /* prevents iOS zoom on focus */
+  }
+  @media (min-width: 768px) {
+    input,
+    textarea,
+    select {
+      font-size: inherit;
+    }
+  }
+
+  button {
+    touch-action: manipulation;
+  }
+}
+
+@layer components {
+  /* The core structural unit — a bordered surface, not a heavy card. */
+  .surface {
+    @apply rounded-lg border border-border/80 bg-card;
+  }
+
+  .hairline {
+    @apply border-b border-border/70;
+  }
+
+  .label-caps {
+    @apply text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground;
+  }
+
+  .section-title {
+    @apply text-[19px] font-semibold tracking-[-0.01em] text-foreground;
+  }
+
+  .numeral {
+    @apply font-num tabular-nums tracking-[-0.02em];
+  }
+
+  .metric {
+    @apply numeral text-[30px] font-medium leading-none text-foreground;
+  }
+
+  .metric-sm {
+    @apply numeral text-[20px] font-medium leading-none text-foreground;
+  }
+
+  .row-divide > * + * {
+    @apply border-t border-border/70;
+  }
+}
+
+@layer utilities {
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .safe-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .grain {
+    background-image: radial-gradient(
+      hsla(40, 20%, 60%, 0.055) 0.5px,
+      transparent 0.5px
+    );
+    background-size: 7px 7px;
+  }
+}

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no"
+    />
+    <meta name="theme-color" content="#F7F5F0" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="人生账本" />
+    <meta name="description" content="人生账本 — 把时间和钱，变成看得见的人生。" />
+    <title>人生账本</title>
+    <!-- ll:server-only-guard -->
+    <script>
+      /*
+       * 直接双击 HTML 文件（file:// 协议）时，浏览器既不允许加载 ES Module，
+       * 也不允许写入 IndexedDB。与其白屏，不如把原因和正确打开方式写清楚。
+       */
+      if (location.protocol === "file:") {
+        document.addEventListener("DOMContentLoaded", function () {
+          var box = document.createElement("div");
+          box.setAttribute(
+            "style",
+            "max-width:560px;margin:9vh auto;padding:0 24px;line-height:1.75;" +
+              "font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;color:#1D1C1A",
+          );
+          box.innerHTML =
+            '<div style="font-size:14px;letter-spacing:.1em;color:#7A756E">人 生 账 本</div>' +
+            '<h1 style="font-size:26px;margin:12px 0 8px;letter-spacing:-.02em">请通过本地服务器打开</h1>' +
+            '<p style="color:#5C5750;margin:0 0 22px">直接双击 HTML 文件时，浏览器会禁止页面保存数据，所以这里不会显示内容。</p>' +
+            '<div style="border:1px solid #E1DCD2;border-radius:14px;background:#FDFCFA;padding:20px 22px">' +
+            '<div style="font-weight:600;margin-bottom:10px">正确的打开方式</div>' +
+            '<ol style="margin:0;padding-left:20px;color:#3A3733">' +
+            "<li>回到 lifeledger 文件夹</li>" +
+            "<li>双击 <b>启动人生账本.command</b></li>" +
+            "<li>浏览器会自动打开 http://localhost:5177</li>" +
+            "</ol></div>" +
+            '<p style="color:#7A756E;font-size:13px;margin-top:18px">不想用脚本的话，也可以在终端里执行：<br>' +
+            '<code style="background:#F1EEE7;padding:3px 7px;border-radius:6px;display:inline-block;margin-top:6px">' +
+            "cd 这个文件夹 &amp;&amp; python3 -m http.server 5177</code></p>";
+          document.body.innerHTML = "";
+          document.body.appendChild(box);
+        });
+      }
+    </script>
+    <!-- /ll:server-only-guard -->
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
