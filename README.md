@@ -54,6 +54,26 @@ LifeEvent {
 | **Assets** | 沉淀资产，以及 From Investment to Asset 关系链 |
 | **其他** | Focus Timer、Session 小结、照片、Calendar、Monthly Review、Life Moments、全局搜索、JSON 导入导出、PWA |
 
+## 云同步（可选）
+
+默认完全离线，数据只在这台设备上。想要手机和电脑看到同一份数据，可以接自己的 Supabase：
+
+**Me → 云同步** → 填 Project URL 和 anon public key → 用邮箱注册 → 完成。
+
+大概十分钟，设置步骤见 [`supabase/README.md`](supabase/README.md)，SQL 脚本在 [`supabase/schema.sql`](supabase/schema.sql)。
+
+同步规则（都在 `src/lib/sync-plan.ts`，是纯函数，有 18 条测试覆盖）：
+
+- 每条记录带 `updatedAt`，两边都有时**取更新的那一份**
+- 删除会留下墓碑，否则另一台设备会把删掉的东西推回来
+- 首次在新设备上连接、且云端已有数据时，**以云端为准**——
+  否则新设备刚生成的示例数据会因为时间戳更新而盖掉真实记录
+- 照片存进私有存储桶，按 id 对账：本地缺就下载，云端缺就上传
+- 数据权限由 Supabase 的行级权限（RLS）保证，每个账号只能读写自己的行
+
+> anon key 是设计给客户端用的公开密钥，真正的防线是 RLS。
+> 千万不要把 `service_role` key 填进应用或提交到仓库。
+
 ## 快速开始
 
 ```bash
@@ -61,6 +81,7 @@ pnpm install
 pnpm dev            # 开发服务器 http://localhost:5173
 pnpm build          # 多文件构建 + PWA service worker
 pnpm build:single   # 单文件构建：JS/CSS/图标/示例照片内联成一个 HTML
+pnpm test:sync      # 同步合并规则测试（纯逻辑，不需要网络）
 ```
 
 ### 两个构建目标

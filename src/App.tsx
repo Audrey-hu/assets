@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toast";
 import { AppProvider, useApp } from "@/store/app-store";
 import { FocusProvider, useFocus } from "@/store/focus-store";
 import { UIProvider } from "@/store/ui-store";
+import { SyncProvider } from "@/store/sync-store";
 import { useRoute } from "@/lib/router";
 import { TodayPage } from "@/features/today/TodayPage";
 import { CalendarPage } from "@/features/today/CalendarPage";
@@ -115,8 +116,10 @@ export default function App() {
     <AppProvider>
       <UIProvider>
         <FocusProvider>
-          <Shell />
-          <Toaster />
+          <SyncProvider>
+            <Shell />
+            <Toaster />
+          </SyncProvider>
         </FocusProvider>
       </UIProvider>
     </AppProvider>

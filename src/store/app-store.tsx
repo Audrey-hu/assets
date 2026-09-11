@@ -25,6 +25,7 @@ import {
 import { compressImage } from "@/lib/media";
 import { applyTheme, defaultSettings, loadSettings, saveSettings } from "@/lib/settings";
 import { buildDemoData, storeDemoPhotos } from "@/lib/seed";
+import { getSession } from "@/lib/cloud";
 import type { Dataset } from "@/lib/stats";
 import type {
   Asset,
@@ -153,7 +154,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
        * 用户会看到一个永远空白的应用。
        */
       const seeded = await getMeta<boolean>("seeded");
-      if (isEmpty && !seeded) {
+      /*
+       * 已经登录云同步的设备不要灌示例数据：
+       * 那些"刚刚创建"的 Demo 记录会在首次同步时盖掉云端更早的真实记录。
+       */
+      const cloudSession = await getSession().catch(() => null);
+      if (isEmpty && !seeded && !cloudSession) {
         const demo = buildDemoData();
         await Promise.all([
           putMany("hobbies", demo.hobbies),

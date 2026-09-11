@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build:single": "tsc -b && vite build --config vite.singlefile.config.ts && node scripts/build-singlefile.mjs",
+    "test:sync": "node scripts/test-sync.mjs",
     "preview": "vite preview --port 4173",
     "typecheck": "tsc -b --noEmit"
   },
@@ -24,6 +25,7 @@
     "@radix-ui/react-switch": "^1.1.2",
     "@radix-ui/react-tabs": "^1.1.2",
     "@radix-ui/react-tooltip": "^1.1.6",
+    "@supabase/supabase-js": "^2.116.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",

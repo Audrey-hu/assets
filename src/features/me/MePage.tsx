@@ -12,11 +12,14 @@ import { fmtDate } from "@/lib/format";
 import { download } from "@/lib/utils";
 import type { Settings } from "@/lib/types";
 import { navigate } from "@/lib/router";
+import { CloudSyncSection } from "./CloudSyncSection";
+import { useSync } from "@/store/sync-store";
 
 export function MePage() {
   const { data, settings, storage, updateSettings, clearDemoData, loadDemoData, reload, notify } =
     useApp();
   const { askConfirm } = useUI();
+  const { session: cloudSession } = useSync();
   const fileRef = useRef<HTMLInputElement>(null);
   const [usage, setUsage] = useState<{ usage: number; quota: number } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -114,6 +117,8 @@ export function MePage() {
         </Card>
       </section>
 
+      <CloudSyncSection />
+
       <section className="pt-7">
         <SectionHeader title="Data" hint="所有数据保存在这台设备上" />
         <Card className="px-5 py-2">
@@ -210,7 +215,9 @@ export function MePage() {
             onClick={() =>
               askConfirm({
                 title: "清空所有数据？",
-                description: "兴趣、Journey、记录、照片、存款都会删除，无法恢复。建议先导出备份。",
+                description: cloudSession
+                  ? "兴趣、Journey、记录、照片、存款都会删除，无法恢复。云同步已开启，云端内容也会一起清空。建议先导出备份。"
+                  : "兴趣、Journey、记录、照片、存款都会删除，无法恢复。建议先导出备份。",
                 confirmLabel: "清空",
                 destructive: true,
                 onConfirm: clearDemoData,

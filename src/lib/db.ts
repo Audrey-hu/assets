@@ -261,6 +261,36 @@ export async function getAll<K extends StoreName>(store: K): Promise<LifeLedgerD
   return kvGet<LifeLedgerDB[K]["value"][]>(`data.${store}`, []);
 }
 
+/** 只取 id，用于生成墓碑等场景，避免把照片 blob 也读出来。 */
+export async function listIds(store: StoreName): Promise<string[]> {
+  const mode = await initStorage();
+  if (mode === "indexedDB") {
+    const db = await openDatabase();
+    return (await db.getAllKeys(store)) as string[];
+  }
+  if (store === "photos") {
+    return kvGet<Omit<Photo, "blob">[]>("photos.index", []).map((item) => item.id);
+  }
+  return kvGet<{ id: string }[]>(`data.${store}`, []).map((row) => row.id);
+}
+
+/** 照片元数据（不含 blob），云同步需要。 */
+export async function listPhotoMeta(): Promise<Omit<Photo, "blob">[]> {
+  const mode = await initStorage();
+  if (mode === "indexedDB") {
+    const db = await openDatabase();
+    const out: Omit<Photo, "blob">[] = [];
+    let cursor = await db.transaction("photos").store.openCursor();
+    while (cursor) {
+      const { id, name, mime, size, createdAt } = cursor.value;
+      out.push({ id, name, mime, size, createdAt });
+      cursor = await cursor.continue();
+    }
+    return out;
+  }
+  return kvGet<Omit<Photo, "blob">[]>("photos.index", []);
+}
+
 /* -------------------------------- writes ------------------------------ */
 
 export async function putRecord<K extends StoreName>(
@@ -328,7 +358,12 @@ function stripBlob(photo: Photo): Omit<Photo, "blob"> {
   };
 }
 
-export async function deleteRecord(store: StoreName, id: ID) {
+export async function deleteRecord(
+  store: StoreName,
+  id: ID,
+  options: { tombstone?: boolean } = {},
+) {
+  if (options.tombstone !== false) await addTombstones([`${store}:${id}`]);
   const mode = await initStorage();
   if (mode === "indexedDB") {
     const db = await openDatabase();
@@ -349,8 +384,13 @@ export async function deleteRecord(store: StoreName, id: ID) {
   );
 }
 
-export async function deleteMany(store: StoreName, ids: ID[]) {
+export async function deleteMany(
+  store: StoreName,
+  ids: ID[],
+  options: { tombstone?: boolean } = {},
+) {
   if (!ids.length) return;
+  if (options.tombstone !== false) await addTombstones(ids.map((id) => `${store}:${id}`));
   const mode = await initStorage();
   if (mode === "indexedDB") {
     const db = await openDatabase();
@@ -375,11 +415,22 @@ export async function deleteMany(store: StoreName, ids: ID[]) {
 
 export async function clearStores(stores: StoreName[]) {
   const mode = await initStorage();
+  /*
+   * 清空本地数据前先记墓碑：云端还留着这些记录，
+   * 不写墓碑的话下次同步会把它们原样拉回来。
+   */
+  const stamps = await getTombstones();
+  const now = new Date().toISOString();
+  for (const store of stores) {
+    if (store === "photos") continue; // 照片按引用同步，不参与记录级墓碑
+    for (const id of await listIds(store)) stamps[`${store}:${id}`] = now;
+  }
+  await setTombstones(stamps);
+
   if (mode === "indexedDB") {
     const db = await openDatabase();
-    const names = [...stores, "meta"] as const;
-    const tx = db.transaction(names, "readwrite");
-    await Promise.all([...names.map((name) => tx.objectStore(name).clear()), tx.done]);
+    const tx = db.transaction(stores, "readwrite");
+    await Promise.all([...stores.map((name) => tx.objectStore(name).clear()), tx.done]);
     return;
   }
   for (const store of stores) {
@@ -391,9 +442,6 @@ export async function clearStores(stores: StoreName[]) {
     } else {
       kv().remove(`data.${store}`);
     }
-  }
-  for (const key of kv().keys()) {
-    if (key.startsWith("meta.")) kv().remove(key);
   }
 }
 
@@ -417,6 +465,39 @@ export async function setMeta(key: string, value: unknown) {
     return;
   }
   kvSet(`meta.${key}`, value);
+}
+
+/* ------------------------------ tombstones ---------------------------- */
+
+/**
+ * 删除掉的记录要留下"墓碑"，否则另一台设备同步时会把旧数据推回来。
+ * 形如 { "events:evt_abc": "2026-09-11T03:00:00.000Z" }
+ */
+export async function getTombstones(): Promise<Record<string, string>> {
+  return (await getMeta<Record<string, string>>("tombstones")) ?? {};
+}
+
+export async function setTombstones(map: Record<string, string>) {
+  await setMeta("tombstones", map);
+}
+
+export async function addTombstones(keys: string[], at = new Date().toISOString()) {
+  if (!keys.length) return;
+  const map = await getTombstones();
+  for (const key of keys) map[key] = at;
+  await setTombstones(map);
+}
+
+/** 墓碑不需要永远留着，超过这个时间的可以清掉。 */
+export async function pruneTombstones(days = 90) {
+  const map = await getTombstones();
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  const next: Record<string, string> = {};
+  for (const [key, at] of Object.entries(map)) {
+    if (new Date(at).getTime() >= cutoff) next[key] = at;
+  }
+  if (Object.keys(next).length !== Object.keys(map).length) await setTombstones(next);
+  return next;
 }
 
 /* -------------------------------- photos ------------------------------ */

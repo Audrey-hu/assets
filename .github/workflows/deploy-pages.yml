@@ -33,6 +33,9 @@ jobs:
       - name: Typecheck & build (PWA)
         run: pnpm build
 
+      - name: 同步规则测试
+        run: pnpm test:sync
+
       - name: Build single file
         run: pnpm build:single
 

@@ -1,4 +1,4 @@
-import { getAll, putMany, resetDatabase, setMeta } from "./db";
+import { getAll, putMany, resetDatabase, setMeta, setTombstones } from "./db";
 import { defaultSettings, loadSettings, saveSettings } from "./settings";
 import type { BackupFile, Photo, Settings } from "./types";
 
@@ -73,17 +73,27 @@ export async function importBackup(file: File): Promise<Settings> {
 
   await resetDatabase();
 
+  /*
+   * 导入备份 = 用备份内容替换全部数据，是一次「恢复」而不是「删除」：
+   *   - 清掉墓碑，否则下次同步会把刚导入的记录当成已删除
+   *   - 把 updatedAt 刷成当前时间，让恢复的内容在同步时胜出
+   */
+  await setTombstones({});
+  const restoredAt = new Date().toISOString();
+  const refreshed = <T extends object>(rows: T[] | undefined): (T & { updatedAt: string })[] =>
+    (rows ?? []).map((row) => ({ ...row, updatedAt: restoredAt }));
+
   await Promise.all([
-    putMany("hobbies", parsed.data.hobbies ?? []),
-    putMany("journeys", parsed.data.journeys ?? []),
-    putMany("stages", parsed.data.stages ?? []),
-    putMany("events", parsed.data.events ?? []),
-    putMany("courses", parsed.data.courses ?? []),
-    putMany("incomes", parsed.data.incomes ?? []),
-    putMany("assets", parsed.data.assets ?? []),
-    putMany("savings", parsed.data.savings ?? []),
-    putMany("savingsTx", parsed.data.savingsTx ?? []),
-    putMany("snapshots", parsed.data.snapshots ?? []),
+    putMany("hobbies", refreshed(parsed.data.hobbies)),
+    putMany("journeys", refreshed(parsed.data.journeys)),
+    putMany("stages", refreshed(parsed.data.stages)),
+    putMany("events", refreshed(parsed.data.events)),
+    putMany("courses", refreshed(parsed.data.courses)),
+    putMany("incomes", refreshed(parsed.data.incomes)),
+    putMany("assets", refreshed(parsed.data.assets)),
+    putMany("savings", refreshed(parsed.data.savings)),
+    putMany("savingsTx", refreshed(parsed.data.savingsTx)),
+    putMany("snapshots", refreshed(parsed.data.snapshots)),
   ]);
 
   const photos: Photo[] = await Promise.all(
