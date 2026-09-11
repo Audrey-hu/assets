@@ -1,4 +1,4 @@
+# pnpm 11 要求显式批准依赖的构建脚本，否则 pnpm install 直接以非零退出码失败。
+# esbuild（vite 的依赖）需要跑 postinstall 才能就位。
 allowBuilds:
-  esbuild: set this to true or false
-onlyBuiltDependencies:
-  - esbuild
+  esbuild: true

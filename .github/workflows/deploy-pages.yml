@@ -21,8 +21,6 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: 11
 
       - uses: actions/setup-node@v4
         with:
@@ -44,6 +42,11 @@ jobs:
           cp -R dist/. site/
           cp "dist-single/人生账本.html" "site/人生账本.html"
           cp "启动人生账本.command" "site/" || true
+
+      - uses: actions/configure-pages@v5
+        with:
+          # 仓库尚未开启 Pages 时自动开启（Source = GitHub Actions）
+          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
