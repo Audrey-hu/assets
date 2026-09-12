@@ -3,7 +3,6 @@ import {
   getAll,
   getPhotoBlob,
   getTombstones,
-  listPhotoMeta,
   pruneTombstones,
   putMany,
   putRecord,
@@ -49,7 +48,7 @@ type Progress = (message: string) => void;
 
 export async function runSync(
   onProgress: Progress = () => undefined,
-  options: { firstSync?: boolean } = {},
+  options: { firstSync?: boolean; dropLocalExtras?: boolean } = {},
 ): Promise<SyncStats> {
   const supabase = getClient();
   if (!supabase) throw new Error("还没有配置 Supabase 连接信息。");
@@ -99,6 +98,7 @@ export async function runSync(
     tombstones,
     userId,
     firstSync: options.firstSync,
+    dropLocalExtras: options.dropLocalExtras,
   });
   const stats: SyncStats = {
     pulled: plan.pull.length,
@@ -110,6 +110,7 @@ export async function runSync(
   };
 
   /* ---------------- 4. 落到本地 ---------------- */
+  const removed = new Set(plan.deleteLocal.map((item) => `${item.store}:${item.id}`));
   for (const item of plan.deleteLocal) {
     /* 云端已经删掉了，本地不要再留墓碑 */
     await deleteRecord(item.store as StoreName, item.id, { tombstone: false });
@@ -129,7 +130,12 @@ export async function runSync(
   }
 
   /* ---------------- 6. 照片 ---------------- */
-  const photos = await syncPhotos(userId, local, plan.pull, onProgress);
+  const photos = await syncPhotos(
+    userId,
+    local.filter((record) => !removed.has(`${record.store}:${record.id}`)),
+    plan.pull,
+    onProgress,
+  );
   stats.photosUp = photos.up;
   stats.photosDown = photos.down;
 
@@ -157,7 +163,6 @@ async function syncPhotos(
   };
   for (const record of local) collect(record.data);
   for (const row of pulled) collect(row.data);
-  for (const meta of await listPhotoMeta()) referenced.add(meta.id);
   if (referenced.size === 0) return { up: 0, down: 0 };
 
   onProgress("正在对账照片…");

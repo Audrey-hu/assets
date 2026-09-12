@@ -52,7 +52,7 @@ interface SyncContextValue {
 const SyncContext = createContext<SyncContextValue | null>(null);
 
 export function SyncProvider({ children }: { children: ReactNode }) {
-  const { data, reload, notify } = useApp();
+  const { revision, isPristineDemo, reload, notify } = useApp();
   const [config, setConfig] = useState<CloudConfig | null>(() => loadCloudConfig());
   const [session, setSession] = useState<Session | null>(null);
   const [status, setStatus] = useState<SyncStatus>(() =>
@@ -129,7 +129,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       setError(null);
       setProgress("准备中…");
       try {
-        const stats = await runSync(setProgress, { firstSync: !lastSyncRef.current });
+        const stats = await runSync(setProgress, {
+          firstSync: !lastSyncRef.current,
+          dropLocalExtras: isPristineDemo(),
+        });
         appliedAt.current = Date.now();
         await reload();
         const finished = stats.finishedAt;
@@ -163,7 +166,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         running.current = false;
       }
     },
-    [reload, notify],
+    [reload, notify, isPristineDemo],
   );
 
   /* 首次连上就同步一次 */
@@ -173,13 +176,14 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     void syncNow("auto");
   }, [session, autoSync, syncNow]);
 
-  /* 数据一有改动，安静地推一次（防抖 4 秒） */
+  /* 用户一有改动，安静地推一次（防抖 4 秒） */
   useEffect(() => {
     if (!session || !autoSync) return;
-    if (Date.now() - appliedAt.current < 3000) return;
+    if (revision === 0) return; // 还没有任何用户改动
+    if (Date.now() - appliedAt.current < 2000) return; // 刚同步完的刷新
     const timer = window.setTimeout(() => void syncNow("auto"), 4000);
     return () => window.clearTimeout(timer);
-  }, [data, session, autoSync, syncNow]);
+  }, [revision, session, autoSync, syncNow]);
 
   /* 回到前台时，如果超过 1 分钟没同步就补一次 */
   useEffect(() => {

@@ -48,8 +48,22 @@ export function planSync(input: {
    * 电脑上记的真实内容 —— 这是最危险的一种数据丢失。
    */
   firstSync?: boolean;
+  /**
+   * 本地只是一份没被改过的示例数据时，第一次连接就把本地多余记录丢掉。
+   *
+   * 否则新设备会带着几百条示例数据连上云端：第一次同步以云端为准没错，
+   * 但这些记录还留在本地，用户随便改点什么就会被推上去，污染干净的数据。
+   */
+  dropLocalExtras?: boolean;
 }): SyncPlan {
-  const { local, remote, tombstones, userId, firstSync = false } = input;
+  const {
+    local,
+    remote,
+    tombstones,
+    userId,
+    firstSync = false,
+    dropLocalExtras = false,
+  } = input;
   const cloudHasData = remote.some((row) => !row.deleted);
   const cloudWins = firstSync && cloudHasData;
 
@@ -86,7 +100,14 @@ export function planSync(input: {
   }
 
   /* ---------- 本地 → 远端 ---------- */
-  if (cloudWins) return plan;
+  if (cloudWins) {
+    if (dropLocalExtras) {
+      for (const [k, mine] of localMap) {
+        if (!remoteMap.has(k)) plan.deleteLocal.push({ store: mine.store, id: mine.id });
+      }
+    }
+    return plan;
+  }
 
   for (const [k, mine] of localMap) {
     const tomb = tombstones[k];
@@ -106,10 +127,17 @@ export function planSync(input: {
 
   /* ---------- 墓碑 → 远端 ---------- */
   for (const [k, at] of Object.entries(tombstones)) {
+    /*
+     * 云端从来没有过这条记录，就没什么可删的。
+     * id 是随机生成的，没上传过就不可能出现在别的设备上，
+     * 所以"另一台设备又把它推回来"这种竞态并不存在。
+     */
+    const row = remoteMap.get(k);
+    if (!row) continue;
+
     const mine = localMap.get(k);
     if (mine && mine.updatedAt > at) continue; // 记录在删除之后又被改过 → 复活
-    const row = remoteMap.get(k);
-    if (!row || row.updated_at < at) {
+    if (row.updated_at < at) {
       const [store, id] = splitKey(k);
       if (!store || !id) continue;
       plan.push.push({

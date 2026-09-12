@@ -64,6 +64,10 @@ export interface Toast {
 interface AppContextValue {
   ready: boolean;
   data: Dataset;
+  /** 每次用户真实改动 +1（同步/刷新引起的变化不算），用来触发自动同步 */
+  revision: number;
+  /** 本地是否只是"自动生成、用户还没碰过"的示例数据 */
+  isPristineDemo: () => boolean;
   settings: Settings;
   storage: { backend: Backend; label: string } | null;
   updateSettings: (patch: Partial<Settings>) => void;
@@ -102,12 +106,31 @@ interface AppContextValue {
 const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [data, setData] = useState<Dataset>(EMPTY);
+  const [data, setDataRaw] = useState<Dataset>(EMPTY);
+  const [revision, setRevision] = useState(0);
+  /* 自动灌的示例数据 + 用户一次都没改过 = 可以放心丢弃 */
+  const autoSeeded = useRef(false);
+  const userEdited = useRef(false);
   const [ready, setReady] = useState(false);
   const [storage, setStorage] = useState<AppContextValue["storage"]>(null);
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
   const [toasts, setToasts] = useState<Toast[]>([]);
   const timers = useRef<Map<string, number>>(new Map());
+
+  /**
+   * 所有"用户改动"都走这里，顺带打上标记。
+   * 从存储里读回来的数据（首次加载、同步后的刷新）走 setDataRaw，不算改动。
+   */
+  const setData = useCallback((updater: React.SetStateAction<Dataset>) => {
+    userEdited.current = true;
+    setRevision((prev) => prev + 1);
+    setDataRaw(updater);
+  }, []);
+
+  const isPristineDemo = useCallback(
+    () => autoSeeded.current && !userEdited.current,
+    [],
+  );
 
   const notify = useCallback((message: string, tone: Toast["tone"] = "default") => {
     const id = uid("toast");
@@ -176,11 +199,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         ]);
         await setMeta("seeded", true);
         await storeDemoPhotos();
+        autoSeeded.current = true;
         if (!cancelled) setSettings((prev) => ({ ...prev, demoSeeded: true }));
         next = demo;
       }
       if (cancelled) return;
-      setData(next);
+      setDataRaw(next);
       setReady(true);
     })();
     return () => {
@@ -199,7 +223,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const reload = useCallback(async () => {
     const next = await load();
-    setData(next);
+    setDataRaw(next);
   }, [load]);
 
   const patchDataset = useCallback((patch: Partial<Dataset>) => {
@@ -538,6 +562,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     () => ({
       ready,
       data,
+      revision,
+      isPristineDemo,
       settings,
       storage,
       updateSettings,
@@ -571,6 +597,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [
       ready,
       data,
+      revision,
+      isPristineDemo,
       settings,
       storage,
       updateSettings,

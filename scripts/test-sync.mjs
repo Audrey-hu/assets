@@ -84,6 +84,16 @@ const plan = (local, remote, tombstones = {}) =>
 const firstPlan = (local, remote, tombstones = {}) =>
   planSync({ local, remote, tombstones, userId: USER, firstSync: true });
 
+const pristinePlan = (local, remote) =>
+  planSync({
+    local,
+    remote,
+    tombstones: {},
+    userId: USER,
+    firstSync: true,
+    dropLocalExtras: true,
+  });
+
 console.log("\n同步合并规则\n");
 
 {
@@ -171,11 +181,8 @@ console.log("\n同步合并规则\n");
 {
   const p = plan([localRec("events", "e1", T(2))], [], { [keyOf("events", "e1")]: T(9) });
   check(
-    "本地已删、云端还没有副本 → 仍然推一条墓碑",
-    p.push.length === 1 &&
-      p.push[0].deleted === true &&
-      p.pull.length === 0 &&
-      p.deleteLocal.length === 0,
+    "本地已删、云端从未有过 → 不推墓碑（没有东西可删）",
+    p.push.length === 0 && p.pull.length === 0 && p.deleteLocal.length === 0,
     JSON.stringify(p),
   );
 }
@@ -224,6 +231,46 @@ console.log("\n首次连接的保护（新设备不要覆盖云端）\n");
   check(
     "非首次连接 → 仍然按时间取新（本地胜出）",
     p.push.length === 1 && p.pull.length === 0,
+    JSON.stringify(p),
+  );
+}
+
+console.log("\n新设备带着示例数据连接时\n");
+
+{
+  const p = pristinePlan(
+    [localRec("events", "demo-1", T(9)), localRec("events", "demo-2", T(9))],
+    [remoteRow("events", "e1", T(2))],
+  );
+  check(
+    "没改过的示例数据 → 本地独有记录被清掉",
+    p.deleteLocal.length === 2 && p.push.length === 0 && p.pull.length === 1,
+    JSON.stringify(p),
+  );
+}
+
+{
+  /* 用户改过的记录不能删，只在 firstSync 时保留 */
+  const p = planSync({
+    local: [localRec("events", "mine", T(9))],
+    remote: [remoteRow("events", "e1", T(2))],
+    tombstones: {},
+    userId: USER,
+    firstSync: true,
+    dropLocalExtras: false,
+  });
+  check(
+    "用户改过的本地记录 → 保留，不上传",
+    p.deleteLocal.length === 0 && p.push.length === 0 && p.pull.length === 1,
+    JSON.stringify(p),
+  );
+}
+
+{
+  const p = pristinePlan([localRec("events", "demo-1", T(9))], []);
+  check(
+    "云端是空的 → 示例数据照常上传，不丢",
+    p.push.length === 1 && p.deleteLocal.length === 0,
     JSON.stringify(p),
   );
 }
