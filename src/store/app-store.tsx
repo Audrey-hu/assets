@@ -33,6 +33,7 @@ import type {
   Hobby,
   ID,
   IncomeProject,
+  Investment,
   Journey,
   LifeEvent,
   SavingsItem,
@@ -53,6 +54,7 @@ const EMPTY: Dataset = {
   savings: [],
   savingsTx: [],
   snapshots: [],
+  investments: [],
 };
 
 export interface Toast {
@@ -93,6 +95,8 @@ interface AppContextValue {
   deleteSavings: (id: ID) => Promise<void>;
   saveSavingsTx: (tx: SavingsTx) => Promise<void>;
   deleteSavingsTx: (id: ID) => Promise<void>;
+  saveInvestment: (item: Investment) => Promise<void>;
+  deleteInvestment: (id: ID) => Promise<void>;
 
   addPhotos: (files: File[], ownerEventId?: ID) => Promise<ID[]>;
   deletePhotos: (ids: ID[]) => Promise<void>;
@@ -149,7 +153,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const load = useCallback(async () => {
-    const [hobbies, journeys, stages, events, courses, incomes, assets, savings, savingsTx, snapshots] =
+    const [hobbies, journeys, stages, events, courses, incomes, assets, savings, investments, savingsTx, snapshots] =
       await Promise.all([
         getAll("hobbies"),
         getAll("journeys"),
@@ -159,10 +163,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
         getAll("incomes"),
         getAll("assets"),
         getAll("savings"),
+        getAll("investments"),
         getAll("savingsTx"),
         getAll("snapshots"),
       ]);
-    return { hobbies, journeys, stages, events, courses, incomes, assets, savings, savingsTx, snapshots };
+    return {
+      hobbies,
+      journeys,
+      stages,
+      events,
+      courses,
+      incomes,
+      assets,
+      savings,
+      investments,
+      savingsTx,
+      snapshots,
+    };
   }, []);
 
   useEffect(() => {
@@ -194,6 +211,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           putMany("incomes", demo.incomes),
           putMany("assets", demo.assets),
           putMany("savings", demo.savings),
+          putMany("investments", demo.investments),
           putMany("savingsTx", demo.savingsTx),
           putMany("snapshots", demo.snapshots),
         ]);
@@ -481,6 +499,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setData((prev) => ({ ...prev, savingsTx: prev.savingsTx.filter((t) => t.id !== id) }));
   }, []);
 
+  /* ---------------------------- investments ---------------------------- */
+
+  const saveInvestment = useCallback(async (item: Investment) => {
+    const next = { ...item, updatedAt: new Date().toISOString() };
+    await putRecord("investments", next);
+    setData((prev) => {
+      const exists = prev.investments.some((i) => i.id === next.id);
+      return {
+        ...prev,
+        investments: exists
+          ? prev.investments.map((i) => (i.id === next.id ? next : i))
+          : [...prev.investments, next],
+      };
+    });
+  }, []);
+
+  const deleteInvestment = useCallback(async (id: ID) => {
+    await deleteRecord("investments", id);
+    setData((prev) => ({
+      ...prev,
+      investments: prev.investments.filter((i) => i.id !== id),
+    }));
+  }, []);
+
   /* ------------------------------- photos ------------------------------ */
 
   const addPhotos = useCallback(async (files: File[]) => {
@@ -528,6 +570,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       "incomes",
       "assets",
       "savings",
+      "investments",
       "savingsTx",
       "snapshots",
       "photos",
@@ -550,6 +593,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       putMany("incomes", demo.incomes),
       putMany("assets", demo.assets),
       putMany("savings", demo.savings),
+      putMany("investments", demo.investments),
       putMany("savingsTx", demo.savingsTx),
       putMany("snapshots", demo.snapshots),
     ]);
@@ -588,6 +632,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       deleteSavings,
       saveSavingsTx,
       deleteSavingsTx,
+      saveInvestment,
+      deleteInvestment,
       addPhotos,
       deletePhotos,
       clearAllData,
@@ -623,6 +669,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       deleteSavings,
       saveSavingsTx,
       deleteSavingsTx,
+      saveInvestment,
+      deleteInvestment,
       addPhotos,
       deletePhotos,
       clearAllData,

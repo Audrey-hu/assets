@@ -234,15 +234,21 @@ export interface Asset {
  * ------------------------------------------------------------------ */
 
 export type SavingsKind = "reservoir" | "emergency" | "deposit";
+/** 小荷包也是储蓄的一种：钱还是你的钱，只是先 earmark 给某件事 */
+export type SavingsKindWithEnvelope = SavingsKind | "envelope";
 
 export interface SavingsItem {
   id: ID;
-  kind: SavingsKind;
+  kind: SavingsKindWithEnvelope;
   name: string;
   /** reservoir / emergency */
   current?: number;
   target?: number;
   monthlyEssential?: number;
+  /** envelope：小荷包 */
+  emoji?: string;
+  monthlyPlan?: number;
+  dueDate?: string;
   /** deposit */
   bank?: string;
   principal?: number;
@@ -251,6 +257,27 @@ export interface SavingsItem {
   depositDate?: string;
   maturityDate?: string;
   autoRenew?: boolean;
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/* ------------------------------------------------------------------ *
+ * Investment — 黄金、基金、股票、数字货币……类别由用户自己定义。
+ * ------------------------------------------------------------------ */
+
+export interface Investment {
+  id: ID;
+  name: string;
+  /** 自由文本，用户想怎么分就怎么分 */
+  category: string;
+  /** 累计投入本金 */
+  cost: number;
+  /** 当前市值；没有更新过就留空，按本金计入总额 */
+  value?: number;
+  startDate: string;
+  /** 市值最后一次更新的时间 */
+  valueUpdatedAt?: string;
   note?: string;
   createdAt: string;
   updatedAt: string;
@@ -310,6 +337,7 @@ export interface BackupFile {
     incomes: IncomeProject[];
     assets: Asset[];
     savings: SavingsItem[];
+    investments: Investment[];
     savingsTx: SavingsTx[];
     snapshots: SavingsSnapshot[];
     photos: { id: ID; name: string; mime: string; createdAt: string; dataUrl: string }[];

@@ -5,6 +5,7 @@ import type {
   Course,
   Hobby,
   IncomeProject,
+  Investment,
   Journey,
   LifeEvent,
   SavingsItem,
@@ -926,6 +927,73 @@ export function buildDemoData(today = new Date()): Dataset {
     return { id: `snap_${month}`, month, total };
   });
 
+  /* ----------------------------- 理财 ------------------------------- */
+  const investments: Investment[] = [
+    {
+      id: "inv_gold",
+      name: "黄金积存",
+      category: "黄金",
+      cost: 5000,
+      value: 5420,
+      startDate: DAY(subDays(today, 180)),
+      valueUpdatedAt: ISO(subDays(today, 3)),
+      note: "每月定投 500。",
+      createdAt: ISO(subDays(today, 180)),
+      updatedAt: ISO(subDays(today, 3)),
+    },
+    {
+      id: "inv_fund",
+      name: "沪深300指数基金",
+      category: "基金",
+      cost: 8000,
+      value: 7640,
+      startDate: DAY(subDays(today, 300)),
+      valueUpdatedAt: ISO(subDays(today, 5)),
+      createdAt: ISO(subDays(today, 300)),
+      updatedAt: ISO(subDays(today, 5)),
+    },
+    {
+      id: "inv_btc",
+      name: "比特币",
+      category: "数字货币",
+      cost: 3000,
+      value: 3900,
+      startDate: DAY(subDays(today, 120)),
+      valueUpdatedAt: ISO(subDays(today, 2)),
+      note: "只放能接受归零的部分。",
+      createdAt: ISO(subDays(today, 120)),
+      updatedAt: ISO(subDays(today, 2)),
+    },
+  ];
+
+  /* ---------------------------- 小荷包 ------------------------------ */
+  savings.push(
+    {
+      id: "sv_env_gpt",
+      kind: "envelope",
+      name: "GPT 会员",
+      emoji: "💻",
+      current: 240,
+      target: 240,
+      monthlyPlan: 40,
+      note: "每月自动续费，先存够一年。",
+      createdAt: ISO(subDays(today, 120)),
+      updatedAt: ISO(subDays(today, 4)),
+    },
+    {
+      id: "sv_env_trip",
+      kind: "envelope",
+      name: "出去玩",
+      emoji: "✈️",
+      current: 1500,
+      target: 5000,
+      monthlyPlan: 600,
+      dueDate: DAY(addDays(today, 240)),
+      createdAt: ISO(subDays(today, 60)),
+      updatedAt: ISO(subDays(today, 6)),
+    },
+  );
+
   /* --------------------------- attach photos ------------------------ */
   const attachLatest = (predicate: (event: LifeEvent) => boolean, photoId: string) => {
     const found = [...events].reverse().find(predicate);
@@ -953,6 +1021,7 @@ export function buildDemoData(today = new Date()): Dataset {
     savings,
     savingsTx,
     snapshots,
+    investments,
   };
 }
 

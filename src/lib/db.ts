@@ -6,6 +6,7 @@ import type {
   Hobby,
   ID,
   IncomeProject,
+  Investment,
   Journey,
   LifeEvent,
   Photo,
@@ -40,6 +41,7 @@ interface LifeLedgerDB extends DBSchema {
   incomes: { key: string; value: IncomeProject };
   assets: { key: string; value: Asset };
   savings: { key: string; value: SavingsItem };
+  investments: { key: string; value: Investment };
   savingsTx: { key: string; value: SavingsTx };
   snapshots: { key: string; value: SavingsSnapshot };
   photos: { key: string; value: Photo };
@@ -55,6 +57,7 @@ export type StoreName =
   | "incomes"
   | "assets"
   | "savings"
+  | "investments"
   | "savingsTx"
   | "snapshots"
   | "photos";
@@ -68,12 +71,14 @@ const DATA_STORES: StoreName[] = [
   "incomes",
   "assets",
   "savings",
+  "investments",
   "savingsTx",
   "snapshots",
 ];
 
 const DB_NAME = "lifeledger";
-const DB_VERSION = 1;
+/* 版本 2：新增 investments（理财） */
+const DB_VERSION = 2;
 const LS_PREFIX = "ll.v1.";
 
 let dbPromise: Promise<IDBPDatabase<LifeLedgerDB>> | null = null;
@@ -101,6 +106,7 @@ function openDatabase() {
         if (!db.objectStoreNames.contains("incomes")) db.createObjectStore("incomes", { keyPath: "id" });
         if (!db.objectStoreNames.contains("assets")) db.createObjectStore("assets", { keyPath: "id" });
         if (!db.objectStoreNames.contains("savings")) db.createObjectStore("savings", { keyPath: "id" });
+        if (!db.objectStoreNames.contains("investments")) db.createObjectStore("investments", { keyPath: "id" });
         if (!db.objectStoreNames.contains("savingsTx")) db.createObjectStore("savingsTx", { keyPath: "id" });
         if (!db.objectStoreNames.contains("snapshots")) db.createObjectStore("snapshots", { keyPath: "id" });
         if (!db.objectStoreNames.contains("photos")) db.createObjectStore("photos", { keyPath: "id" });

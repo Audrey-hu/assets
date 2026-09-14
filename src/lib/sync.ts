@@ -28,6 +28,7 @@ const SYNCED_STORES: StoreName[] = [
   "incomes",
   "assets",
   "savings",
+  "investments",
   "savingsTx",
   "snapshots",
 ];

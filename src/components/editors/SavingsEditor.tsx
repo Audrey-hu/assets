@@ -3,19 +3,22 @@ import { Dialog } from "@radix-ui/react-dialog";
 import { SheetBody, SheetContent, SheetFooter, SheetHeader } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Chip, Field, Input, Select } from "@/components/ui/form";
-import { DecimalInput, MoneyInput } from "./fields";
+import { DecimalInput, EmojiPicker, MoneyInput } from "./fields";
 import { fmtDate, todayISO } from "@/lib/format";
 import { uid } from "@/lib/utils";
 import { useApp } from "@/store/app-store";
 import { useUI } from "@/store/ui-store";
-import type { SavingsItem, SavingsKind } from "@/lib/types";
+import type { SavingsItem, SavingsKindWithEnvelope } from "@/lib/types";
 import { addMonths, format, parseISO } from "date-fns";
 
-const KIND_LABEL: Record<SavingsKind, string> = {
+const KIND_LABEL: Record<SavingsKindWithEnvelope, string> = {
   reservoir: "蓄水池",
   emergency: "备用金",
   deposit: "定期存款",
+  envelope: "小荷包",
 };
+
+const ENVELOPE_EMOJI = ["🐷", "✈️", "🎁", "💻", "📚", "🎉", "🏥", "🚗", "🏠", "💰"];
 
 export function SavingsEditor() {
   const { modal, payload, closeModal, askConfirm } = useUI();
@@ -23,8 +26,11 @@ export function SavingsEditor() {
   const initial = (payload.initial ?? {}) as Partial<SavingsItem>;
   const { saveSavings, deleteSavings } = useApp();
 
-  const [kind, setKind] = useState<SavingsKind>("reservoir");
+  const [kind, setKind] = useState<SavingsKindWithEnvelope>("reservoir");
   const [name, setName] = useState("蓄水池");
+  const [emoji, setEmoji] = useState("🐷");
+  const [monthlyPlan, setMonthlyPlan] = useState<number | undefined>();
+  const [dueDate, setDueDate] = useState("");
   const [current, setCurrent] = useState<number | undefined>();
   const [target, setTarget] = useState<number | undefined>();
   const [monthlyEssential, setMonthlyEssential] = useState<number | undefined>();
@@ -42,6 +48,9 @@ export function SavingsEditor() {
     const nextKind = initial.kind ?? "reservoir";
     setKind(nextKind);
     setName(initial.name ?? KIND_LABEL[nextKind]);
+    setEmoji(initial.emoji ?? "🐷");
+    setMonthlyPlan(initial.monthlyPlan);
+    setDueDate(initial.dueDate ?? "");
     setCurrent(initial.current);
     setTarget(initial.target);
     setMonthlyEssential(initial.monthlyEssential);
@@ -82,6 +91,9 @@ export function SavingsEditor() {
       current: kind === "deposit" ? undefined : (current ?? 0),
       target: kind === "deposit" ? undefined : target,
       monthlyEssential: kind === "reservoir" ? monthlyEssential : undefined,
+      emoji: kind === "envelope" ? emoji : undefined,
+      monthlyPlan: kind === "envelope" ? monthlyPlan : undefined,
+      dueDate: kind === "envelope" ? dueDate || undefined : undefined,
       bank: kind === "deposit" ? bank.trim() || undefined : undefined,
       principal: kind === "deposit" ? principal : undefined,
       rate: kind === "deposit" ? rate : undefined,
@@ -106,7 +118,7 @@ export function SavingsEditor() {
         <SheetBody className="space-y-4">
           <Field label="类型">
             <div className="flex flex-wrap gap-1.5">
-              {(Object.keys(KIND_LABEL) as SavingsKind[]).map((key) => (
+              {(Object.keys(KIND_LABEL) as SavingsKindWithEnvelope[]).map((key) => (
                 <Chip
                   key={key}
                   active={kind === key}
@@ -127,6 +139,9 @@ export function SavingsEditor() {
 
           {kind !== "deposit" ? (
             <>
+              {kind === "envelope" && (
+                <EmojiPicker value={emoji} onChange={setEmoji} options={ENVELOPE_EMOJI} />
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <Field label="当前金额">
                   <MoneyInput value={current} onChange={setCurrent} />
@@ -139,6 +154,20 @@ export function SavingsEditor() {
                 <Field label="每月必要开支" hint="用于计算安全月数">
                   <MoneyInput value={monthlyEssential} onChange={setMonthlyEssential} />
                 </Field>
+              )}
+              {kind === "envelope" && (
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="每月计划存" hint="可选">
+                    <MoneyInput value={monthlyPlan} onChange={setMonthlyPlan} />
+                  </Field>
+                  <Field label="想什么时候用" hint="可选">
+                    <Input
+                      type="date"
+                      value={dueDate}
+                      onChange={(event) => setDueDate(event.target.value)}
+                    />
+                  </Field>
+                </div>
               )}
             </>
           ) : (

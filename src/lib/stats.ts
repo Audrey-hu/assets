@@ -20,6 +20,7 @@ import type {
   Hobby,
   ID,
   IncomeProject,
+  Investment,
   Journey,
   LifeEvent,
   SavingsItem,
@@ -41,6 +42,7 @@ export interface Dataset {
   savings: SavingsItem[];
   savingsTx: SavingsTx[];
   snapshots: SavingsSnapshot[];
+  investments: Investment[];
 }
 
 export function eventMinutes(e: LifeEvent): number {
@@ -374,6 +376,9 @@ export interface SavingsTotals {
   liquidity: number;
   emergency?: SavingsItem;
   reservoir?: SavingsItem;
+  /** 小荷包：同样是你的钱，只是先 earmark 给某件事 */
+  envelopes: SavingsItem[];
+  envelopeTotal: number;
   runwayMonths: number;
   runwayTarget: number;
   runwayProgress: number;
@@ -385,7 +390,9 @@ export function savingsTotals(items: SavingsItem[]): SavingsTotals {
   const reservoir = items.find((i) => i.kind === "reservoir");
   const emergency = items.find((i) => i.kind === "emergency");
   const deposits = items.filter((i) => i.kind === "deposit");
-  const available = (reservoir?.current ?? 0) + (emergency?.current ?? 0);
+  const envelopes = items.filter((i) => i.kind === "envelope");
+  const envelopeTotal = sum(envelopes.map((i) => i.current ?? 0));
+  const available = (reservoir?.current ?? 0) + (emergency?.current ?? 0) + envelopeTotal;
   const locked = sum(deposits.map((d) => d.principal ?? 0));
   const total = available + locked;
   const monthly = reservoir?.monthlyEssential ?? 0;
@@ -398,11 +405,72 @@ export function savingsTotals(items: SavingsItem[]): SavingsTotals {
     liquidity: total > 0 ? available / total : 0,
     emergency,
     reservoir,
+    envelopes,
+    envelopeTotal,
     runwayMonths,
     runwayTarget: monthly > 0 ? runwayTarget / monthly : 0,
     runwayProgress:
       runwayTarget > 0 ? Math.min(1, (reservoir?.current ?? 0) / runwayTarget) : 0,
   };
+}
+
+/** 小荷包还要存几个月；没设目标或每月计划就返回 undefined */
+export function envelopeMonths(item: SavingsItem): number | undefined {
+  if (!item.target || !item.monthlyPlan || item.monthlyPlan <= 0) return undefined;
+  const gap = item.target - (item.current ?? 0);
+  if (gap <= 0) return 0;
+  return Math.ceil(gap / item.monthlyPlan);
+}
+
+/* ---------------------------- Investments ---------------------------- */
+
+export interface InvestmentStats {
+  cost: number;
+  value: number;
+  pnl: number;
+  roi: number;
+  /** 还没更新过市值的条数，按本金计入总额 */
+  missing: number;
+  byCategory: { category: string; cost: number; value: number; pnl: number; share: number }[];
+}
+
+export function investmentStats(items: Investment[]): InvestmentStats {
+  const cost = sum(items.map((i) => i.cost));
+  const value = sum(items.map((i) => i.value ?? i.cost));
+  const missing = items.filter((i) => i.value === undefined).length;
+
+  const groups = new Map<string, { cost: number; value: number }>();
+  for (const item of items) {
+    const key = item.category || "其他";
+    const bucket = groups.get(key) ?? { cost: 0, value: 0 };
+    bucket.cost += item.cost;
+    bucket.value += item.value ?? item.cost;
+    groups.set(key, bucket);
+  }
+
+  return {
+    cost,
+    value,
+    pnl: value - cost,
+    roi: cost > 0 ? (value - cost) / cost : 0,
+    missing,
+    byCategory: [...groups.entries()]
+      .map(([category, bucket]) => ({
+        category,
+        cost: bucket.cost,
+        value: bucket.value,
+        pnl: bucket.value - bucket.cost,
+        share: value > 0 ? bucket.value / value : 0,
+      }))
+      .sort((a, b) => b.value - a.value),
+  };
+}
+
+/** 从已有记录里汇总出用户用过的类别，给编辑器的快捷选项用 */
+export function investmentCategories(items: Investment[]): string[] {
+  const used = [...new Set(items.map((i) => i.category).filter(Boolean))];
+  const defaults = ["黄金", "基金", "股票", "数字货币", "债券"];
+  return [...used, ...defaults.filter((d) => !used.includes(d))];
 }
 
 export function expectedInterest(item: SavingsItem): number {

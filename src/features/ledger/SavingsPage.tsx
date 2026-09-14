@@ -7,6 +7,7 @@ import { useApp } from "@/store/app-store";
 import { useEditors, useUI } from "@/store/ui-store";
 import {
   SAVINGS_MILESTONES,
+  envelopeMonths,
   expectedInterest,
   maturityList,
   savingTxFor,
@@ -20,7 +21,7 @@ import type { SavingsItem } from "@/lib/types";
 export function SavingsPage() {
   const { data, settings } = useApp();
   const { openModal } = useUI();
-  const { newSavings } = useEditors();
+  const { newSavings, newSavingsTx } = useEditors();
 
   const totals = useMemo(() => savingsTotals(data.savings), [data.savings]);
   const deposits = useMemo(() => data.savings.filter((s) => s.kind === "deposit"), [data.savings]);
@@ -67,6 +68,14 @@ export function SavingsPage() {
             </div>
           </div>
         </div>
+        {totals.envelopeTotal > 0 && (
+          <p className="mt-3 text-[12.5px] text-muted-foreground">
+            可用金额里含小荷包{" "}
+            <span className="numeral text-foreground/80">
+              {fmtMoney(totals.envelopeTotal, { currency })}
+            </span>
+          </p>
+        )}
       </Card>
 
       {/* reservoir */}
@@ -155,6 +164,121 @@ export function SavingsPage() {
             </Card>
           )}
         </div>
+      </section>
+
+      {/* 小荷包：为某件具体的事单独存钱 */}
+      <section>
+        <SectionHeader
+          title="小荷包"
+          hint={
+            totals.envelopes.length
+              ? `合计 ${fmtMoney(totals.envelopeTotal, { currency })}`
+              : "为某件具体的事单独存钱"
+          }
+          action={
+            <Button
+              size="pill"
+              variant="ghost"
+              className="text-muted-foreground"
+              onClick={() =>
+                newSavings({ initial: { kind: "envelope", name: "新的小荷包", emoji: "🐷" } })
+              }
+            >
+              <Plus className="size-3.5" />
+              新建
+            </Button>
+          }
+        />
+        {totals.envelopes.length === 0 ? (
+          <Card className="px-5 py-6 text-center text-[13px] leading-relaxed text-muted-foreground">
+            还没有小荷包。会员费、出去玩、想买的东西，都可以单独存一笔
+            <br />
+            <button
+              type="button"
+              onClick={() =>
+                newSavings({ initial: { kind: "envelope", name: "新的小荷包", emoji: "🐷" } })
+              }
+              className="mt-2 text-primary underline-offset-4 hover:underline"
+            >
+              新建一个小荷包 →
+            </button>
+          </Card>
+        ) : (
+          <div className="grid gap-3 lg:grid-cols-2">
+            {totals.envelopes.map((envelope) => {
+              const current = envelope.current ?? 0;
+              const target = envelope.target ?? 0;
+              const pct = target > 0 ? Math.min(100, (current / target) * 100) : 0;
+              const months = envelopeMonths(envelope);
+              const done = target > 0 && current >= target;
+              return (
+                <Card key={envelope.id} className="p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <span className="grid size-10 shrink-0 place-items-center rounded-lg border border-border/70 bg-secondary/50 text-[19px]">
+                        {envelope.emoji ?? "🐷"}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="truncate text-[15px] font-medium text-foreground">
+                          {envelope.name}
+                        </div>
+                        <div className="text-[12px] text-muted-foreground">
+                          {target > 0 ? `目标 ${fmtMoney(target, { currency })}` : "没有设目标"}
+                          {envelope.dueDate ? ` · ${fmtDate(envelope.dueDate)} 前` : ""}
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      size="pill"
+                      variant="ghost"
+                      className="text-muted-foreground"
+                      onClick={() => openModal("savings", { initial: envelope })}
+                    >
+                      编辑
+                    </Button>
+                  </div>
+
+                  <div className="mt-4 flex items-baseline gap-2">
+                    <span className="numeral text-[26px] font-medium leading-none text-foreground">
+                      {fmtMoney(current, { currency })}
+                    </span>
+                    {target > 0 && (
+                      <span className="numeral text-[13px] text-muted-foreground">
+                        / {fmtMoney(target, { currency })}
+                      </span>
+                    )}
+                  </div>
+
+                  {target > 0 && (
+                    <div className="mt-3 space-y-2">
+                      <Progress value={pct} tone="sand" height={6} />
+                      <div className="flex items-center justify-between text-[12px] text-muted-foreground">
+                        <span className="numeral">{Math.round(pct)}%</span>
+                        <span>
+                          {done
+                            ? "已存够"
+                            : months !== undefined
+                              ? `按每月 ${fmtMoney(envelope.monthlyPlan ?? 0, { currency })}，还需 ${months} 个月`
+                              : `还差 ${fmtMoney(target - current, { currency })}`}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  <Button
+                    size="pill"
+                    variant="outline"
+                    className="mt-4"
+                    onClick={() => newSavingsTx({ itemId: envelope.id })}
+                  >
+                    <Plus className="size-3.5" />
+                    记录变动
+                  </Button>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {/* deposits */}
