@@ -33,11 +33,28 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,svg,png,jpg,woff2}"],
+        /*
+         * 刻意不预缓存 index.html。
+         *
+         * 预缓存 HTML 会导致部署新版本之后，用户仍然被旧页面钉住：
+         * 页面里的资源文件名是带哈希的，旧 HTML 指向旧 JS，
+         * 于是"刷新了还是旧版本"。HTML 改走 NetworkFirst，始终优先拿最新的。
+         */
+        globPatterns: ["**/*.{js,css,svg,png,jpg,woff2}"],
+        globIgnores: ["**/index.html"],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
-        /* hash routing needs no navigation fallback, and leaving it on would
-           let the service worker answer requests for unrelated files. */
         navigateFallback: null,
+        runtimeCaching: [
+          {
+            urlPattern: ({ request }: { request: Request }) => request.mode === "navigate",
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "lifeledger-pages",
+              networkTimeoutSeconds: 4,
+              expiration: { maxEntries: 8, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
+        ],
       },
     }),
   ],

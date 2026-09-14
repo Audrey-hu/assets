@@ -15,9 +15,24 @@ if (
   import.meta.env.PROD &&
   location.protocol.startsWith("http")
 ) {
+  const hadController = Boolean(navigator.serviceWorker.controller);
+
   window.addEventListener("load", () => {
     navigator.serviceWorker
       .register(new URL("sw.js", document.baseURI).href)
+      .then((registration) => registration.update().catch(() => undefined))
       .catch(() => undefined);
+  });
+
+  /*
+   * 新版本接管后自动刷新一次。
+   * 否则用户会一直看到 service worker 缓存里的旧界面 ——
+   * "明明更新了，刷新了还是老样子"就是这么来的。
+   */
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (reloaded || !hadController) return;
+    reloaded = true;
+    window.location.reload();
   });
 }
