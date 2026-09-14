@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/store/app-store";
 import { Chip, Field, Input } from "@/components/ui/form";
 import { cn } from "@/lib/utils";
@@ -131,20 +131,81 @@ export function MoneyInput({
   placeholder?: string;
 }) {
   return (
+    <DecimalInput value={value} onChange={onChange} placeholder={placeholder} prefix="¥" />
+  );
+}
+
+/**
+ * 数字输入框。
+ *
+ * 关键点：输入过程中保留用户敲的原始文本，而不是每次都把数字渲染回去。
+ * 否则刚敲下的小数点会被吃掉 —— 输 "1.7" 会变成 "17"，
+ * 利率、金额、小时数这类字段就完全没法填小数。
+ */
+export function DecimalInput({
+  value,
+  onChange,
+  allowDecimal = true,
+  prefix,
+  suffix,
+  placeholder,
+  className,
+}: {
+  value: number | undefined;
+  onChange: (value: number | undefined) => void;
+  allowDecimal?: boolean;
+  prefix?: React.ReactNode;
+  suffix?: React.ReactNode;
+  placeholder?: string;
+  className?: string;
+}) {
+  const [text, setText] = useState(() =>
+    value === undefined || Number.isNaN(value) ? "" : String(value),
+  );
+  const lastEmitted = useRef<number | undefined>(value);
+
+  /* 外部换了值（比如打开另一条记录）才回写文本，输入过程不动 */
+  useEffect(() => {
+    if (value !== lastEmitted.current) {
+      lastEmitted.current = value;
+      setText(value === undefined || Number.isNaN(value) ? "" : String(value));
+    }
+  }, [value]);
+
+  function handleChange(raw: string) {
+    let next = allowDecimal ? raw.replace(/[^\d.]/g, "") : raw.replace(/[^\d]/g, "");
+    if (allowDecimal) {
+      /* 只允许一个小数点 */
+      const first = next.indexOf(".");
+      if (first >= 0) {
+        next = next.slice(0, first + 1) + next.slice(first + 1).replace(/\./g, "");
+      }
+    }
+    setText(next);
+    const parsed = next === "" || next === "." ? undefined : Number(next);
+    lastEmitted.current = parsed;
+    onChange(parsed);
+  }
+
+  return (
     <div className="relative">
-      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[15px] text-muted-foreground">
-        ¥
-      </span>
+      {prefix && (
+        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[15px] text-muted-foreground">
+          {prefix}
+        </span>
+      )}
       <Input
-        inputMode="decimal"
-        className="pl-7 numeral"
+        inputMode={allowDecimal ? "decimal" : "numeric"}
+        className={cn(prefix && "pl-7", suffix && "pr-10", "numeral", className)}
         placeholder={placeholder}
-        value={value === undefined || Number.isNaN(value) ? "" : String(value)}
-        onChange={(event) => {
-          const raw = event.target.value.replace(/[^\d.]/g, "");
-          onChange(raw === "" ? undefined : Number(raw));
-        }}
+        value={text}
+        onChange={(event) => handleChange(event.target.value)}
       />
+      {suffix && (
+        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-muted-foreground">
+          {suffix}
+        </span>
+      )}
     </div>
   );
 }

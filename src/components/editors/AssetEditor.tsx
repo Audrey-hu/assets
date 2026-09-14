@@ -3,7 +3,7 @@ import { Dialog } from "@radix-ui/react-dialog";
 import { SheetBody, SheetContent, SheetFooter, SheetHeader } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Select, Field, Input, Textarea } from "@/components/ui/form";
-import { MoneyInput } from "./fields";
+import { DecimalInput, MoneyInput } from "./fields";
 import { PhotoGrid, PhotoPickerInput } from "@/components/PhotoGrid";
 import { ASSET_TYPE, ASSET_TYPE_ORDER } from "@/lib/labels";
 import { todayISO } from "@/lib/format";
@@ -110,15 +110,11 @@ export function AssetEditor() {
           </div>
           <div className="grid grid-cols-3 gap-3">
             <Field label="投入小时">
-              <Input
-                inputMode="decimal"
-                className="numeral"
+              <DecimalInput
                 placeholder="16"
-                value={hours ?? ""}
-                onChange={(event) => {
-                  const raw = event.target.value.replace(/[^\d.]/g, "");
-                  setHours(raw === "" ? undefined : Number(raw));
-                }}
+                suffix="小时"
+                value={hours}
+                onChange={setHours}
               />
             </Field>
             <Field label="成本">

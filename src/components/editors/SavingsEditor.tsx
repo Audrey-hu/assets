@@ -3,7 +3,7 @@ import { Dialog } from "@radix-ui/react-dialog";
 import { SheetBody, SheetContent, SheetFooter, SheetHeader } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Chip, Field, Input, Select } from "@/components/ui/form";
-import { MoneyInput } from "./fields";
+import { DecimalInput, MoneyInput } from "./fields";
 import { fmtDate, todayISO } from "@/lib/format";
 import { uid } from "@/lib/utils";
 import { useApp } from "@/store/app-store";
@@ -157,15 +157,11 @@ export function SavingsEditor() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <Field label="年利率" hint="%">
-                  <Input
-                    inputMode="decimal"
-                    className="numeral"
+                  <DecimalInput
                     placeholder="1.70"
-                    value={rate ?? ""}
-                    onChange={(event) => {
-                      const raw = event.target.value.replace(/[^\d.]/g, "");
-                      setRate(raw === "" ? undefined : Number(raw));
-                    }}
+                    suffix="%"
+                    value={rate}
+                    onChange={setRate}
                   />
                 </Field>
                 <Field label="存期" hint="月">

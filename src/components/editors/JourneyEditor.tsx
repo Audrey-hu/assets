@@ -3,7 +3,7 @@ import { Dialog } from "@radix-ui/react-dialog";
 import { SheetBody, SheetContent, SheetFooter, SheetHeader } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/form";
-import { AccentPicker } from "./fields";
+import { AccentPicker, DecimalInput } from "./fields";
 import { JOURNEY_KIND, JOURNEY_STATUS, STAGE_PHASE, STAGE_PHASE_ORDER } from "@/lib/labels";
 import { fmtDate, toDate, todayISO } from "@/lib/format";
 import { uid } from "@/lib/utils";
@@ -298,15 +298,11 @@ export function StageEditor() {
               />
             </Field>
             <Field label="目标小时" hint="可选">
-              <Input
-                inputMode="numeric"
-                className="numeral"
+              <DecimalInput
                 placeholder="90"
-                value={targetHours ?? ""}
-                onChange={(event) => {
-                  const raw = event.target.value.replace(/[^\d]/g, "");
-                  setTargetHours(raw === "" ? undefined : Number(raw));
-                }}
+                suffix="小时"
+                value={targetHours}
+                onChange={setTargetHours}
               />
             </Field>
           </div>

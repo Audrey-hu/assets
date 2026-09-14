@@ -3,7 +3,7 @@ import { Dialog } from "@radix-ui/react-dialog";
 import { SheetContent, SheetFooter, SheetHeader, SheetBody } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Chip, Field, Input, Select, Textarea } from "@/components/ui/form";
-import { MoneyInput, TargetPicker, TimeInput } from "./fields";
+import { DecimalInput, MoneyInput, TargetPicker, TimeInput } from "./fields";
 import { PhotoGrid, PhotoPickerInput } from "@/components/PhotoGrid";
 import { useApp } from "@/store/app-store";
 import { useEditors, useUI } from "@/store/ui-store";
@@ -292,15 +292,11 @@ export function EventEditor() {
 
           {type === "result" && (
             <Field label="成绩 / 分数">
-              <Input
-                inputMode="numeric"
-                className="numeral"
+              <DecimalInput
                 placeholder="58"
-                value={score ?? ""}
-                onChange={(event) => {
-                  const raw = event.target.value.replace(/[^\d.]/g, "");
-                  setScore(raw === "" ? undefined : Number(raw));
-                }}
+                suffix="分"
+                value={score}
+                onChange={setScore}
               />
             </Field>
           )}

@@ -3,7 +3,7 @@ import { Dialog } from "@radix-ui/react-dialog";
 import { SheetBody, SheetContent, SheetFooter, SheetHeader } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Chip, Field, Input, Select, Textarea } from "@/components/ui/form";
-import { MoneyInput } from "./fields";
+import { DecimalInput, MoneyInput } from "./fields";
 import { INCOME_TYPE } from "@/lib/labels";
 import { todayISO } from "@/lib/format";
 import { uid } from "@/lib/utils";
@@ -105,15 +105,11 @@ export function IncomeEditor() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Field label="投入时间" hint="小时">
-              <Input
-                inputMode="decimal"
-                className="numeral"
+              <DecimalInput
                 placeholder="5"
-                value={hours ?? ""}
-                onChange={(event) => {
-                  const raw = event.target.value.replace(/[^\d.]/g, "");
-                  setHours(raw === "" ? undefined : Number(raw));
-                }}
+                suffix="小时"
+                value={hours}
+                onChange={setHours}
               />
             </Field>
             <Field label="日期">
