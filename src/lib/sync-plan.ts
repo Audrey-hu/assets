@@ -58,6 +58,9 @@ function splitKey(k: string): [string, string] {
   return [k.slice(0, at), k.slice(at + 1)];
 }
 
+/** 允许的时钟误差：超过这个范围的"未来时间"一律视为坏数据 */
+const CLOCK_SKEW_MS = 5 * 60 * 1000;
+
 export function planSync(input: {
   local: LocalRecord[];
   remote: RemoteRow[];
@@ -87,6 +90,7 @@ export function planSync(input: {
 
   const cloudHasData = remote.some((row) => !row.deleted);
   const cloudWins = firstSync && cloudHasData;
+  const now = Date.now();
 
   const remoteMap = new Map<string, RemoteRow>();
   for (const row of remote) remoteMap.set(keyOf(row.store, row.id), row);
@@ -95,6 +99,8 @@ export function planSync(input: {
   for (const row of local) localMap.set(keyOf(row.store, row.id), row);
 
   const plan: SyncPlan = { pull: [], deleteLocal: [], push: [] };
+  /* 这一轮刚从云端拿下来的，内容已经和云端一致，不用再推回去 */
+  const pulled = new Set<string>();
 
   /* ---------- 1. 本地墓碑优先：说过删了就是删了 ---------- */
   for (const [k, at] of Object.entries(tombstones)) {
@@ -128,6 +134,13 @@ export function planSync(input: {
     if (tombstones[k] && !cloudWins) continue;
 
     const mine = localMap.get(k);
+    /*
+     * 云端时间戳落在未来 = 坏数据（历史版本写过不带时区的字符串，
+     * 存进 UTC 数据库就成了"晚上 8 点"）。这种值不能拿来比较，
+     * 否则用户今天之内编辑这条记录时，改动会被判定为"过期"而悄悄回滚。
+     * 遇到就一律让本地这份赢，顺便把它改写成正常时间。
+     */
+    const remoteIsFuture = time(row.updated_at) > now + CLOCK_SKEW_MS;
 
     if (row.deleted) {
       if (mine) {
@@ -137,8 +150,9 @@ export function planSync(input: {
       continue;
     }
 
-    if (!mine || cloudWins || time(mine.updatedAt) < time(row.updated_at)) {
+    if (!mine || cloudWins || (!remoteIsFuture && time(mine.updatedAt) < time(row.updated_at))) {
       plan.pull.push(row);
+      pulled.add(k);
       localMap.set(k, {
         store: row.store,
         id: row.id,
@@ -159,8 +173,10 @@ export function planSync(input: {
   }
 
   for (const [k, mine] of localMap) {
+    if (pulled.has(k)) continue;
     const row = remoteMap.get(k);
-    if (!row || row.deleted || time(row.updated_at) < time(mine.updatedAt)) {
+    const remoteIsFuture = Boolean(row) && time(row!.updated_at) > now + CLOCK_SKEW_MS;
+    if (!row || row.deleted || remoteIsFuture || time(row.updated_at) < time(mine.updatedAt)) {
       plan.push.push({
         store: mine.store,
         id: mine.id,

@@ -217,6 +217,33 @@ console.log("\n同步合并规则\n");
 }
 
 {
+  /* 历史遗留：云端时间戳落在未来（晚上 8 点），本地今天编辑过 */
+  const future = new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString();
+  const nowIso = new Date().toISOString();
+  const p = plan([localRec("events", "e1", nowIso)], [
+    { store: "events", id: "e1", data: { id: "e1" }, updated_at: future, deleted: false },
+  ]);
+  check(
+    "云端时间戳落在未来 → 本地编辑胜出并覆盖云端",
+    p.push.length === 1 && p.pull.length === 0,
+    JSON.stringify(p),
+  );
+}
+
+{
+  /* 本地没有这条时，未来时间戳的记录仍然要能下载下来 */
+  const future = new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString();
+  const p = plan([], [
+    { store: "events", id: "e1", data: { id: "e1" }, updated_at: future, deleted: false },
+  ]);
+  check(
+    "云端时间戳落在未来 + 本地没有 → 照常下载",
+    p.pull.length === 1 && p.push.length === 0,
+    JSON.stringify(p),
+  );
+}
+
+{
   const p = plan([localRec("hobbies", "h1", T(2))], []);
   check(
     "上传行带 user_id 与完整 data",
