@@ -267,8 +267,12 @@ export function CloudSyncSection() {
             </div>
 
             <p className="pt-1 text-[12px] leading-relaxed text-muted-foreground">
-              把配对链接发到手机上打开，那台设备就不用再手输这些参数了。
-              链接里只包含连接信息，不含密码。
+              把配对链接发到手机上打开，那台设备会自动填好上面这些参数，
+              <span className="text-foreground/80">然后你用同一个邮箱登录一次即可</span>
+              （登录只需做一次，之后一直有效）。
+              <br />
+              链接里只有项目地址和公开密钥，<span className="text-foreground/80">不含密码和登录凭证</span>
+              —— 所以就算链接被别人看到，他也进不去你的账本。
             </p>
           </div>
         )}

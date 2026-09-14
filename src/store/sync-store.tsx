@@ -257,13 +257,14 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     try {
       const parsed = JSON.parse(decodeURIComponent(escape(atob(raw)))) as CloudConfig;
       if (parsed?.url && parsed?.key) configure(parsed.url, parsed.key);
+      notify("连接信息已填好，用同一个邮箱登录就能看到你的数据", "success");
     } catch {
       /* 链接坏了就当没看见 */
     }
     const url = new URL(location.href);
     url.searchParams.delete("cloud");
     window.history.replaceState(null, "", url.toString());
-  }, [configure]);
+  }, [configure, notify]);
 
   const value = useMemo<SyncContextValue>(
     () => ({
