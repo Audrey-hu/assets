@@ -33,6 +33,8 @@ interface SyncContextValue {
   configured: boolean;
   config: CloudConfig | null;
   session: Session | null;
+  /** 正在从本地恢复登录状态（避免刚打开就闪出登录表单） */
+  restoring: boolean;
   status: SyncStatus;
   progress: string;
   error: string | null;
@@ -55,6 +57,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const { revision, isPristineDemo, reload, notify } = useApp();
   const [config, setConfig] = useState<CloudConfig | null>(() => loadCloudConfig());
   const [session, setSession] = useState<Session | null>(null);
+  const [restoring, setRestoring] = useState(true);
   const [status, setStatus] = useState<SyncStatus>(() =>
     loadCloudConfig() ? "idle" : "off",
   );
@@ -97,6 +100,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     if (!config) {
       setSession(null);
       setStatus("off");
+      setRestoring(false);
       return;
     }
     let active = true;
@@ -104,11 +108,13 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       if (!active) return;
       setSession(current);
       setStatus(current ? "idle" : "off");
+      setRestoring(false);
     });
     const off = onAuthChange((next) => {
       if (!active) return;
       setSession(next);
       setStatus(next ? "idle" : "off");
+      setRestoring(false);
     });
     return () => {
       active = false;
@@ -271,6 +277,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       configured: Boolean(config),
       config,
       session,
+      restoring,
       status,
       progress,
       error,
@@ -289,6 +296,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     [
       config,
       session,
+      restoring,
       status,
       progress,
       error,

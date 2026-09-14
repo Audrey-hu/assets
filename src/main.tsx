@@ -15,6 +15,12 @@ if (
   import.meta.env.PROD &&
   location.protocol.startsWith("http")
 ) {
+  /*
+   * 请求持久化存储：装成 App 之后，尽量避免系统在空间紧张时清掉本地数据。
+   * iOS 上这个 API 不一定生效，但 Chrome / Android 上有效，问了没坏处。
+   */
+  navigator.storage?.persist?.().catch(() => undefined);
+
   const hadController = Boolean(navigator.serviceWorker.controller);
 
   window.addEventListener("load", () => {

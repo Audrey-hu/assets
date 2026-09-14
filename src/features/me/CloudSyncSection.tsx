@@ -23,6 +23,7 @@ export function CloudSyncSection() {
     configured,
     config,
     session,
+    restoring,
     status,
     progress,
     error,
@@ -136,10 +137,19 @@ export function CloudSyncSection() {
               保存并继续
             </Button>
           </div>
+        ) : restoring ? (
+          <div className="flex items-center gap-3 py-2">
+            <Loader2 className="size-4 animate-spin text-muted-foreground" />
+            <span className="text-[13px] text-muted-foreground">正在恢复登录状态…</span>
+          </div>
         ) : !session ? (
           <div className="space-y-4">
             <p className="text-[13px] leading-relaxed text-muted-foreground">
               用邮箱注册一个账号。第一次注册后，其它设备用同一个邮箱登录就能看到同一份数据。
+              <br />
+              <span className="text-foreground/80">
+                登录状态会保存在这台设备上，之后打开不用重新登录。
+              </span>
             </p>
             <Field label="邮箱">
               <Input
@@ -211,6 +221,9 @@ export function CloudSyncSection() {
                   {session.user.email}
                 </div>
                 <div className="text-[12px] text-muted-foreground">{syncLabel}</div>
+                <div className="mt-0.5 text-[11.5px] text-muted-foreground/80">
+                  已记住登录状态，下次打开不用重新登录
+                </div>
               </div>
             </div>
 

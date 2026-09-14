@@ -56,6 +56,8 @@ export function getClient(): SupabaseClient | null {
         autoRefreshToken: true,
         detectSessionInUrl: false,
         storageKey: "lifeledger.auth.v1",
+        /* 明确用 localStorage 保存登录状态；拿不到就不保存，避免静默丢登录 */
+        storage: typeof localStorage === "undefined" ? undefined : localStorage,
       },
     });
   }
