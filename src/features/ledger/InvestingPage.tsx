@@ -3,6 +3,7 @@ import { Pencil, Plus, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, EmptyState, Progress, SectionHeader } from "@/components/ui/display";
 import { Chip } from "@/components/ui/form";
+import { Money } from "@/components/ui/money";
 import { useApp } from "@/store/app-store";
 import { useEditors, useUI } from "@/store/ui-store";
 import { investmentStats } from "@/lib/stats";
@@ -51,26 +52,22 @@ export function InvestingPage() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <div className="label-caps">当前市值</div>
-            <div className="mt-2 numeral text-[34px] font-medium leading-none tracking-[-0.03em] text-foreground">
-              {fmtMoney(totals.value)}
-            </div>
+            <Money
+              map={totals.value}
+              className="mt-2 block text-[34px] font-medium leading-none tracking-[-0.03em] text-foreground"
+            />
             <div className="mt-2.5 text-[12.5px] text-muted-foreground">
-              投入本金 <span className="numeral text-foreground/80">{fmtMoney(totals.cost)}</span>
+              投入本金 <Money map={totals.cost} className="text-foreground/80" />
             </div>
           </div>
           <div className="text-right">
             <div className="label-caps">盈亏</div>
-            <div
-              className={cn(
-                "mt-2 numeral text-[22px] font-medium leading-none",
-                totals.pnl >= 0 ? "text-primary" : "text-[#A9765A]",
-              )}
-            >
-              {totals.pnl >= 0 ? "+" : "−"}
-              {fmtMoney(Math.abs(totals.pnl))}
-            </div>
+            <Money
+              map={totals.pnl}
+              className="mt-2 block text-[22px] font-medium leading-none text-foreground"
+            />
             <div className="mt-2 numeral text-[13px] text-muted-foreground">
-              {(totals.roi * 100).toFixed(1)}%
+              {totals.roi === undefined ? "多币种，不折算" : `${(totals.roi * 100).toFixed(1)}%`}
             </div>
           </div>
         </div>
@@ -81,15 +78,12 @@ export function InvestingPage() {
               <div key={row.category} className="space-y-1.5">
                 <div className="flex items-center justify-between text-[13px]">
                   <span className="text-foreground/85">{row.category}</span>
-                  <span className="numeral text-muted-foreground">
-                    {fmtMoney(row.value)}
-                    <span className="ml-2 text-[12px]">
-                      {row.pnl >= 0 ? "+" : "−"}
-                      {fmtMoney(Math.abs(row.pnl))}
-                    </span>
+                  <span className="flex items-baseline gap-2 text-muted-foreground">
+                    <Money map={row.value} />
+                    <Money map={row.pnl} className="text-[12px]" />
                   </span>
                 </div>
-                <Progress value={row.share * 100} height={4} />
+                {row.share !== undefined && <Progress value={row.share * 100} height={4} />}
               </div>
             ))}
           </div>
@@ -163,13 +157,15 @@ export function InvestingPage() {
                   <div>
                     <div className="text-[11.5px] text-muted-foreground">本金</div>
                     <div className="mt-1 numeral text-[15px] font-medium text-foreground">
-                      {fmtMoney(item.cost)}
+                      {fmtMoney(item.cost, { currency: item.currency })}
                     </div>
                   </div>
                   <div>
                     <div className="text-[11.5px] text-muted-foreground">市值</div>
                     <div className="mt-1 numeral text-[15px] font-medium text-foreground">
-                      {item.value === undefined ? "—" : fmtMoney(item.value)}
+                      {item.value === undefined
+                        ? "—"
+                        : fmtMoney(item.value, { currency: item.currency })}
                     </div>
                   </div>
                   <div>

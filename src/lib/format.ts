@@ -87,6 +87,101 @@ function usesWan(currency: string) {
   return currency === "CNY" || currency === "JPY";
 }
 
+/* ------------------------- 多币种：分开算，不换算 ------------------------- */
+
+/**
+ * 不同币种的金额各自累加，形如 { CNY: 40140, USD: 2000 }。
+ *
+ * 我们不做汇率换算：汇率会变、来源也不可靠，硬凑成一个数字反而失真。
+ * 汇总时按币种并列显示，你看到的就是"我手里有多少人民币、多少美元"。
+ */
+export type MoneyMap = Record<string, number>;
+
+export function addMoney(
+  map: MoneyMap,
+  amount: number | null | undefined,
+  currency?: string,
+): MoneyMap {
+  if (!amount) return map;
+  const code = currency || getActiveCurrency();
+  map[code] = (map[code] ?? 0) + amount;
+  return map;
+}
+
+export function sumMoney(
+  items: { amount: number | null | undefined; currency?: string }[],
+): MoneyMap {
+  const map: MoneyMap = {};
+  for (const item of items) addMoney(map, item.amount, item.currency);
+  return map;
+}
+
+export interface MoneyEntry {
+  code: string;
+  amount: number;
+  text: string;
+}
+
+/** 按金额从大到小排好，过滤掉 0 */
+export function moneyEntries(
+  map: MoneyMap,
+  options: { decimals?: number; compact?: boolean } = {},
+): MoneyEntry[] {
+  return Object.entries(map)
+    .filter(([, value]) => Math.abs(value) > 0.004)
+    .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+    .map(([code, amount]) => ({
+      code,
+      amount,
+      text: fmtMoney(amount, { currency: code, ...options }),
+    }));
+}
+
+export function fmtMoneyMap(
+  map: MoneyMap,
+  options: { decimals?: number; compact?: boolean } = {},
+  fallback = "—",
+): string {
+  const list = moneyEntries(map, options);
+  return list.length ? list.map((item) => item.text).join(" · ") : fallback;
+}
+
+/** 只有一种币种时才返回金额，用于算比率（时薪、ROI 这类跨币种没有意义） */
+export function singleCurrencyAmount(map: MoneyMap): number | undefined {
+  const entries = Object.entries(map).filter(([, value]) => Math.abs(value) > 0.004);
+  if (entries.length !== 1) return undefined;
+  return entries[0][1];
+}
+
+export function isSingleCurrency(map: MoneyMap): boolean {
+  return Object.keys(map).filter((code) => Math.abs(map[code]) > 0.004).length <= 1;
+}
+
+/** 金额最大的那个币种，用于曲线、里程碑这类只能取一个数的地方 */
+export function dominantMoney(map: MoneyMap): { code: string; amount: number } | undefined {
+  const entries = Object.entries(map).filter(([, value]) => Math.abs(value) > 0.004);
+  if (!entries.length) return undefined;
+  const [code, amount] = entries.sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))[0];
+  return { code, amount };
+}
+
+export function hasMoney(map: MoneyMap): boolean {
+  return Object.values(map).some((value) => Math.abs(value) > 0.004);
+}
+
+/** 两个同币种金额相除，跨币种返回 undefined */
+export function safeRatio(numerator: MoneyMap, denominator: MoneyMap): number | undefined {
+  if (!isSingleCurrency(numerator) || !isSingleCurrency(denominator)) return undefined;
+  const top = singleCurrencyAmount(numerator);
+  const bottom = singleCurrencyAmount(denominator);
+  if (top === undefined || bottom === undefined || bottom === 0) return undefined;
+  const sameCode =
+    Object.keys(numerator).find((code) => Math.abs(numerator[code]) > 0.004) ===
+    Object.keys(denominator).find((code) => Math.abs(denominator[code]) > 0.004);
+  if (!sameCode) return undefined;
+  return top / bottom;
+}
+
 export interface MoneyOptions {
   currency?: string;
   decimals?: number;

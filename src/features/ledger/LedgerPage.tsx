@@ -28,8 +28,8 @@ export function LedgerPage({ section }: { section: LedgerSection }) {
         title="Ledger"
         subtitle={TITLES[section].subtitle}
         actions={
-          <label className="relative inline-flex items-center">
-            <span className="sr-only">记账币种</span>
+          <label className="relative inline-flex items-center" title="默认币种：只影响新记录，已有的金额不会因此改变">
+            <span className="sr-only">默认币种</span>
             <select
               value={settings.currency}
               onChange={(event) =>

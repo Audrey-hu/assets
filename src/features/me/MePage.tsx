@@ -72,7 +72,7 @@ export function MePage() {
         <SectionHeader title="Preferences" />
         <Card className="divide-y divide-border/70 px-5 py-2">
           <div className="grid gap-4 py-3 sm:grid-cols-2">
-            <Field label="默认货币">
+            <Field label="默认币种" hint="只影响新记录">
               <Select
                 value={settings.currency}
                 onChange={(event) =>

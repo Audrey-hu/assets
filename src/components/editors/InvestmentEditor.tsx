@@ -3,23 +3,25 @@ import { Dialog } from "@radix-ui/react-dialog";
 import { SheetBody, SheetContent, SheetFooter, SheetHeader } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Chip, Field, Input, Textarea } from "@/components/ui/form";
-import { MoneyInput } from "./fields";
-import { fmtMoney, todayISO } from "@/lib/format";
+import { CurrencyPicker, MoneyInput } from "./fields";
+import { fmtMoney, fmtMoneyMap, todayISO } from "@/lib/format";
 import { investmentCategories, investmentStats } from "@/lib/stats";
 import { useApp } from "@/store/app-store";
 import { useUI } from "@/store/ui-store";
 import { uid } from "@/lib/utils";
 import type { Investment } from "@/lib/types";
+import type { CurrencyCode } from "@/lib/format";
 
 export function InvestmentEditor() {
   const { modal, payload, closeModal, askConfirm } = useUI();
   const open = modal === "investment";
   const initial = (payload.initial ?? {}) as Partial<Investment>;
-  const { data, saveInvestment, deleteInvestment } = useApp();
+  const { data, settings, saveInvestment, deleteInvestment } = useApp();
 
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
   const [cost, setCost] = useState<number | undefined>();
+  const [currency, setCurrency] = useState<CurrencyCode>("CNY");
   const [value, setValue] = useState<number | undefined>();
   const [startDate, setStartDate] = useState(todayISO());
   const [note, setNote] = useState("");
@@ -30,6 +32,7 @@ export function InvestmentEditor() {
     setName(initial.name ?? "");
     setCategory(initial.category ?? "");
     setCost(initial.cost);
+    setCurrency(initial.currency ?? settings.currency);
     setValue(initial.value);
     setStartDate(initial.startDate ?? todayISO());
     setNote(initial.note ?? "");
@@ -57,6 +60,7 @@ export function InvestmentEditor() {
       name: name.trim(),
       category: category.trim() || "其他",
       cost,
+      currency,
       value,
       startDate,
       valueUpdatedAt: value === undefined ? undefined : valueChanged ? now : (initial.valueUpdatedAt ?? now),
@@ -105,12 +109,16 @@ export function InvestmentEditor() {
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="投入本金">
-              <MoneyInput value={cost} onChange={setCost} />
+              <MoneyInput value={cost} onChange={setCost} currency={currency} />
             </Field>
             <Field label="当前市值" hint="可以不填">
-              <MoneyInput value={value} onChange={setValue} />
+              <MoneyInput value={value} onChange={setValue} currency={currency} />
             </Field>
           </div>
+
+          <Field label="币种" hint="这笔投资用哪种货币">
+            <CurrencyPicker value={currency} onChange={setCurrency} />
+          </Field>
 
           {value !== undefined && cost !== undefined && cost > 0 && (
             <div className="surface flex items-center justify-between px-3.5 py-3">
@@ -124,7 +132,7 @@ export function InvestmentEditor() {
                   }
                 >
                   {value - cost >= 0 ? "+" : "−"}
-                  {fmtMoney(Math.abs(value - cost))}
+                  {fmtMoney(Math.abs(value - cost), { currency })}
                 </span>
                 <span className="numeral text-[12.5px] text-muted-foreground">
                   {((value - cost) / cost * 100).toFixed(1)}%
@@ -151,7 +159,7 @@ export function InvestmentEditor() {
 
           {data.investments.length > 0 && (
             <p className="text-[12.5px] leading-relaxed text-muted-foreground">
-              当前合计投入 {fmtMoney(totals.cost)}，市值 {fmtMoney(totals.value)}
+              当前合计投入 {fmtMoneyMap(totals.cost)}，市值 {fmtMoneyMap(totals.value)}
               {totals.missing > 0 ? `（其中 ${totals.missing} 笔还没更新市值，按本金计）` : ""}
             </p>
           )}

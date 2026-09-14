@@ -190,6 +190,43 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  /**
+   * 一次性迁移：把还没有币种的旧记录，按当前默认币种钉死。
+   *
+   * 不做这一步的话，"默认币种"这个设置会反过来改掉老数据的含义 ——
+   * 把 CNY 改成 USD 之后，去年记的 ¥10000 会显示成 $10000，
+   * 既没有换算也不是原意。钉死之后就各归各的，默认币种只影响新记录。
+   */
+  const migrateCurrencyStamps = useCallback(async (dataset: Dataset, code: string) => {
+    const done = await getMeta<boolean>("currencyStamped");
+    if (done) return false;
+
+    const stamp = <T extends { currency?: string; updatedAt?: string }>(rows: T[]) =>
+      rows.filter((row) => !row.currency).map((row) => ({ ...row, currency: code as never }));
+
+    const jobs: Promise<unknown>[] = [];
+    const events = dataset.events.filter((e) => e.amount !== undefined && !e.currency);
+    if (events.length) jobs.push(putMany("events", stamp(events) as LifeEvent[]));
+    if (dataset.savings.some((s) => !s.currency)) {
+      jobs.push(putMany("savings", stamp(dataset.savings) as never));
+    }
+    if (dataset.investments.some((s) => !s.currency)) {
+      jobs.push(putMany("investments", stamp(dataset.investments) as never));
+    }
+    if (dataset.incomes.some((s) => !s.currency)) {
+      jobs.push(putMany("incomes", stamp(dataset.incomes) as never));
+    }
+    if (dataset.assets.some((s) => !s.currency)) {
+      jobs.push(putMany("assets", stamp(dataset.assets) as never));
+    }
+    if (dataset.courses.some((s) => !s.currency)) {
+      jobs.push(putMany("courses", stamp(dataset.courses) as never));
+    }
+    await Promise.all(jobs);
+    await setMeta("currencyStamped", true);
+    return jobs.length > 0;
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -230,13 +267,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         next = demo;
       }
       if (cancelled) return;
+      const migrated = await migrateCurrencyStamps(next, loadSettings().currency);
+      if (migrated) next = await load();
       setDataRaw(next);
       setReady(true);
     })();
     return () => {
       cancelled = true;
     };
-  }, [load]);
+  }, [load, migrateCurrencyStamps]);
 
   useEffect(() => {
     applyTheme(settings.theme);

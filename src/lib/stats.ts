@@ -10,9 +10,15 @@ import {
   subDays,
 } from "date-fns";
 import {
+  addMoney,
+  dominantMoney,
+  getActiveCurrency,
   monthKey as toMonthKey,
+  safeRatio,
+  singleCurrencyAmount,
   toDate,
   todayISO,
+  type MoneyMap,
 } from "./format";
 import type {
   Asset,
@@ -55,6 +61,11 @@ export function eventExpense(e: LifeEvent): number {
   if (!amount) return 0;
   const kind = e.moneyType ?? (e.type === "expense" ? "expense" : undefined);
   return kind === "expense" ? amount : 0;
+}
+
+/** 事件金额 + 它的币种（不填则跟随应用记账币种） */
+export function eventMoney(e: LifeEvent): { amount: number; currency: string } {
+  return { amount: e.amount ?? 0, currency: e.currency ?? getActiveCurrency() };
 }
 
 export function eventIncome(e: LifeEvent): number {
@@ -106,35 +117,43 @@ export function eventsInMonth(events: LifeEvent[], monthKey: string) {
 export interface HobbyStats {
   minutes: number;
   sessions: number;
-  invested: number;
-  costPerHour: number;
+  invested: MoneyMap;
+  costPerHour: MoneyMap;
   lastSessionDate?: string;
   firstSessionDate?: string;
   photos: ID[];
-  monthly: { month: string; minutes: number; sessions: number; invested: number }[];
+  monthly: { month: string; minutes: number; sessions: number; invested: MoneyMap }[];
 }
 
 export function hobbyStats(hobbyId: ID, dataset: Dataset): HobbyStats {
   const events = dataset.events.filter((e) => e.hobbyId === hobbyId);
   const sessions = events.filter(isSession);
   const minutes = sum(sessions.map(eventMinutes));
-  const invested = sum(events.map(eventExpense));
+  const invested: MoneyMap = {};
+  for (const e of events) {
+    addMoney(invested, eventExpense(e), e.currency ?? getActiveCurrency());
+  }
   const photos = events.flatMap((e) => e.photoIds ?? []);
-  const months = new Map<string, { minutes: number; sessions: number; invested: number }>();
+  const months = new Map<string, { minutes: number; sessions: number; invested: MoneyMap }>();
   for (const e of events) {
     const key = e.date.slice(0, 7);
-    const bucket = months.get(key) ?? { minutes: 0, sessions: 0, invested: 0 };
+    const bucket = months.get(key) ?? { minutes: 0, sessions: 0, invested: {} };
     bucket.minutes += eventMinutes(e);
     bucket.sessions += isSession(e) ? 1 : 0;
-    bucket.invested += eventExpense(e);
+    addMoney(bucket.invested, eventExpense(e), e.currency ?? getActiveCurrency());
     months.set(key, bucket);
   }
   const sorted = sessions.map((s) => s.date).sort();
+  const hours = minutes / 60;
+  const costPerHour: MoneyMap = {};
+  if (hours > 0) {
+    for (const [code, value] of Object.entries(invested)) costPerHour[code] = value / hours;
+  }
   return {
     minutes,
     sessions: sessions.length,
     invested,
-    costPerHour: minutes > 0 ? invested / (minutes / 60) : 0,
+    costPerHour,
     lastSessionDate: sorted.at(-1),
     firstSessionDate: sorted[0],
     photos,
@@ -170,7 +189,7 @@ export function startOfWeekLocal(date: Date, weekStartsOn = 1) {
 export interface JourneyStats {
   minutes: number;
   sessions: number;
-  invested: number;
+  invested: MoneyMap;
   days: number;
   daysToTarget?: number;
   progress: number;
@@ -188,10 +207,12 @@ export function journeyStats(journey: Journey, dataset: Dataset): JourneyStats {
   const completed = stages.filter((s) => s.status === "completed").length;
   const days = Math.max(0, differenceInCalendarDays(new Date(), toDate(journey.startDate)));
   const dates = events.map((e) => e.date).sort();
+  const invested: MoneyMap = {};
+  for (const e of events) addMoney(invested, eventExpense(e), e.currency ?? getActiveCurrency());
   return {
     minutes: sum(sessions.map(eventMinutes)),
     sessions: sessions.length,
-    invested: sum(events.map(eventExpense)),
+    invested,
     days,
     daysToTarget: journey.targetDate
       ? differenceInCalendarDays(toDate(journey.targetDate), new Date())
@@ -206,6 +227,8 @@ export function journeyStats(journey: Journey, dataset: Dataset): JourneyStats {
 export function stageStats(stage: Stage, dataset: Dataset) {
   const events = dataset.events.filter((e) => e.stageId === stage.id);
   const sessions = events.filter(isSession);
+  const invested: MoneyMap = {};
+  for (const e of events) addMoney(invested, eventExpense(e), e.currency ?? getActiveCurrency());
   const days = stage.startDate
     ? Math.max(
         0,
@@ -218,7 +241,7 @@ export function stageStats(stage: Stage, dataset: Dataset) {
   return {
     minutes: sum(sessions.map(eventMinutes)),
     sessions: sessions.length,
-    invested: sum(events.map(eventExpense)),
+    invested,
     days,
   };
 }
@@ -229,11 +252,11 @@ export interface MonthSummary {
   monthKey: string;
   minutes: number;
   sessions: number;
-  invested: number;
-  sideIncome: number;
-  netIncome: number;
+  invested: MoneyMap;
+  sideIncome: MoneyMap;
+  netIncome: MoneyMap;
   assetsCreated: number;
-  topExpense?: { title: string; amount: number };
+  topExpense?: { title: string; amount: number; currency: string };
   mostTime?: { name: string; minutes: number; href: string };
   mostConsistent?: { name: string; sessions: number; href: string };
   days: { date: string; sessions: number }[];
@@ -245,14 +268,19 @@ export function monthSummary(dataset: Dataset, key = toMonthKey(new Date())): Mo
   const incomes = dataset.incomes.filter((i) => i.date.startsWith(key));
   const assets = dataset.assets.filter((a) => a.createdDate.startsWith(key));
 
-  const expenseTotals = new Map<string, number>();
+  const expenseTotals = new Map<string, { amount: number; currency: string }>();
   for (const e of events) {
     const amount = eventExpense(e);
     if (amount > 0) {
-      expenseTotals.set(e.title, (expenseTotals.get(e.title) ?? 0) + amount);
+      const currency = e.currency ?? getActiveCurrency();
+      const key = `${currency}|${e.title}`;
+      const prev = expenseTotals.get(key);
+      expenseTotals.set(key, { amount: (prev?.amount ?? 0) + amount, currency });
     }
   }
-  const topExpenseEntry = [...expenseTotals.entries()].sort((a, b) => b[1] - a[1])[0];
+  const topExpenseEntry = [...expenseTotals.entries()].sort(
+    (a, b) => b[1].amount - a[1].amount,
+  )[0];
 
   const byTarget = new Map<string, { name: string; minutes: number; href: string }>();
   for (const e of sessions) {
@@ -287,15 +315,31 @@ export function monthSummary(dataset: Dataset, key = toMonthKey(new Date())): Mo
   const dayCount = new Map<string, number>();
   for (const e of sessions) dayCount.set(e.date, (dayCount.get(e.date) ?? 0) + 1);
 
+  const invested: MoneyMap = {};
+  for (const e of events) addMoney(invested, eventExpense(e), e.currency ?? getActiveCurrency());
+  const sideIncome: MoneyMap = {};
+  const netIncome: MoneyMap = {};
+  for (const income of incomes) {
+    const code = income.currency ?? getActiveCurrency();
+    addMoney(sideIncome, income.revenue, code);
+    addMoney(netIncome, income.revenue - income.cost, code);
+  }
+
   return {
     monthKey: key,
     minutes: sum(sessions.map(eventMinutes)),
     sessions: sessions.length,
-    invested: sum(events.map(eventExpense)),
-    sideIncome: sum(incomes.map((i) => i.revenue)),
-    netIncome: sum(incomes.map((i) => i.revenue - i.cost)),
+    invested,
+    sideIncome,
+    netIncome,
     assetsCreated: assets.length,
-    topExpense: topExpenseEntry ? { title: topExpenseEntry[0], amount: topExpenseEntry[1] } : undefined,
+    topExpense: topExpenseEntry
+      ? {
+          title: topExpenseEntry[0].split("|").slice(1).join("|"),
+          amount: topExpenseEntry[1].amount,
+          currency: topExpenseEntry[1].currency,
+        }
+      : undefined,
     mostTime,
     mostConsistent,
     days: [...dayCount.entries()]
@@ -370,15 +414,16 @@ export function dailyBuckets(dataset: Dataset, start: Date, end: Date) {
 /* ------------------------------ Savings ------------------------------ */
 
 export interface SavingsTotals {
-  available: number;
-  locked: number;
-  total: number;
-  liquidity: number;
+  available: MoneyMap;
+  locked: MoneyMap;
+  total: MoneyMap;
+  /** 跨币种算比率没有意义，只有单一币种时才给值 */
+  liquidity?: number;
   emergency?: SavingsItem;
   reservoir?: SavingsItem;
   /** 小荷包：同样是你的钱，只是先 earmark 给某件事 */
   envelopes: SavingsItem[];
-  envelopeTotal: number;
+  envelopeTotal: MoneyMap;
   runwayMonths: number;
   runwayTarget: number;
   runwayProgress: number;
@@ -391,10 +436,19 @@ export function savingsTotals(items: SavingsItem[]): SavingsTotals {
   const emergency = items.find((i) => i.kind === "emergency");
   const deposits = items.filter((i) => i.kind === "deposit");
   const envelopes = items.filter((i) => i.kind === "envelope");
-  const envelopeTotal = sum(envelopes.map((i) => i.current ?? 0));
-  const available = (reservoir?.current ?? 0) + (emergency?.current ?? 0) + envelopeTotal;
-  const locked = sum(deposits.map((d) => d.principal ?? 0));
-  const total = available + locked;
+  const envelopeTotal: MoneyMap = {};
+  const available: MoneyMap = {};
+  const locked: MoneyMap = {};
+  for (const item of envelopes) addMoney(envelopeTotal, item.current, item.currency);
+  for (const item of [reservoir, emergency]) {
+    if (item) addMoney(available, item.current, item.currency);
+  }
+  for (const item of envelopes) addMoney(available, item.current, item.currency);
+  for (const item of deposits) addMoney(locked, item.principal, item.currency);
+  const total: MoneyMap = {};
+  for (const map of [available, locked]) {
+    for (const [code, value] of Object.entries(map)) addMoney(total, value, code);
+  }
   const monthly = reservoir?.monthlyEssential ?? 0;
   const runwayMonths = monthly > 0 ? (reservoir?.current ?? 0) / monthly : 0;
   const runwayTarget = reservoir?.target ?? 0;
@@ -402,7 +456,7 @@ export function savingsTotals(items: SavingsItem[]): SavingsTotals {
     available,
     locked,
     total,
-    liquidity: total > 0 ? available / total : 0,
+    liquidity: safeRatio(available, total),
     emergency,
     reservoir,
     envelopes,
@@ -425,44 +479,76 @@ export function envelopeMonths(item: SavingsItem): number | undefined {
 /* ---------------------------- Investments ---------------------------- */
 
 export interface InvestmentStats {
-  cost: number;
-  value: number;
-  pnl: number;
-  roi: number;
+  cost: MoneyMap;
+  value: MoneyMap;
+  pnl: MoneyMap;
+  /** 跨币种算收益率没有意义，只有单一币种时才给值 */
+  roi?: number;
   /** 还没更新过市值的条数，按本金计入总额 */
   missing: number;
-  byCategory: { category: string; cost: number; value: number; pnl: number; share: number }[];
+  byCategory: {
+    category: string;
+    cost: MoneyMap;
+    value: MoneyMap;
+    pnl: MoneyMap;
+    share?: number;
+  }[];
 }
 
 export function investmentStats(items: Investment[]): InvestmentStats {
-  const cost = sum(items.map((i) => i.cost));
-  const value = sum(items.map((i) => i.value ?? i.cost));
+  const cost: MoneyMap = {};
+  const value: MoneyMap = {};
+  for (const item of items) {
+    const code = item.currency ?? getActiveCurrency();
+    addMoney(cost, item.cost, code);
+    addMoney(value, item.value ?? item.cost, code);
+  }
+  const pnl: MoneyMap = {};
+  for (const code of new Set([...Object.keys(cost), ...Object.keys(value)])) {
+    addMoney(pnl, (value[code] ?? 0) - (cost[code] ?? 0), code);
+  }
   const missing = items.filter((i) => i.value === undefined).length;
 
-  const groups = new Map<string, { cost: number; value: number }>();
+  const groups = new Map<string, { cost: MoneyMap; value: MoneyMap }>();
   for (const item of items) {
     const key = item.category || "其他";
-    const bucket = groups.get(key) ?? { cost: 0, value: 0 };
-    bucket.cost += item.cost;
-    bucket.value += item.value ?? item.cost;
+    const code = item.currency ?? getActiveCurrency();
+    const bucket = groups.get(key) ?? { cost: {}, value: {} };
+    addMoney(bucket.cost, item.cost, code);
+    addMoney(bucket.value, item.value ?? item.cost, code);
     groups.set(key, bucket);
   }
 
+  const ratio = safeRatio(value, cost);
+  const totalValue = singleCurrencyAmount(value);
   return {
     cost,
     value,
-    pnl: value - cost,
-    roi: cost > 0 ? (value - cost) / cost : 0,
+    pnl,
+    roi: ratio === undefined ? undefined : ratio - 1,
     missing,
     byCategory: [...groups.entries()]
-      .map(([category, bucket]) => ({
-        category,
-        cost: bucket.cost,
-        value: bucket.value,
-        pnl: bucket.value - bucket.cost,
-        share: value > 0 ? bucket.value / value : 0,
-      }))
-      .sort((a, b) => b.value - a.value),
+      .map(([category, bucket]) => {
+        const bucketPnl: MoneyMap = {};
+        for (const code of new Set([...Object.keys(bucket.cost), ...Object.keys(bucket.value)])) {
+          addMoney(bucketPnl, (bucket.value[code] ?? 0) - (bucket.cost[code] ?? 0), code);
+        }
+        const bucketValue = singleCurrencyAmount(bucket.value);
+        return {
+          category,
+          cost: bucket.cost,
+          value: bucket.value,
+          pnl: bucketPnl,
+          share:
+            totalValue !== undefined && bucketValue !== undefined && totalValue > 0
+              ? bucketValue / totalValue
+              : undefined,
+        };
+      })
+      .sort(
+        (a, b) =>
+          (singleCurrencyAmount(b.value) ?? 0) - (singleCurrencyAmount(a.value) ?? 0),
+      ),
   };
 }
 
@@ -492,34 +578,48 @@ export function savingTxFor(itemId: ID, txs: SavingsTx[]) {
     .sort((a, b) => (a.date < b.date ? 1 : -1));
 }
 
-export function savingsSeries(snapshots: SavingsSnapshot[], currentTotal: number) {
+export function savingsSeries(snapshots: SavingsSnapshot[], currentTotal: MoneyMap) {
+  /* 曲线只能画一个币种，取金额最大的那个 */
+  const dominant = dominantMoney(currentTotal)?.code ?? getActiveCurrency();
+  const current = currentTotal[dominant] ?? 0;
   const rows = [...snapshots]
     .sort((a, b) => (a.month < b.month ? -1 : 1))
     .map((s) => ({
       month: s.month,
       label: `${Number(s.month.slice(5, 7))}月`,
-      total: s.total,
+      total: s.totals?.[dominant] ?? s.total,
     }));
   const key = toMonthKey(new Date());
   const idx = rows.findIndex((r) => r.month === key);
-  if (idx >= 0) rows[idx].total = currentTotal;
-  else rows.push({ month: key, label: `${Number(key.slice(5, 7))}月`, total: currentTotal });
-  return rows;
+  if (idx >= 0) rows[idx].total = current;
+  else rows.push({ month: key, label: `${Number(key.slice(5, 7))}月`, total: current });
+  return { code: dominant, rows };
 }
 
 /* ------------------------------ Income ------------------------------- */
 
 export function incomeStats(projects: IncomeProject[]) {
-  const revenue = sum(projects.map((p) => p.revenue));
-  const cost = sum(projects.map((p) => p.cost));
+  const revenue: MoneyMap = {};
+  const cost: MoneyMap = {};
+  const net: MoneyMap = {};
+  for (const project of projects) {
+    const code = project.currency ?? getActiveCurrency();
+    addMoney(revenue, project.revenue, code);
+    addMoney(cost, project.cost, code);
+    addMoney(net, project.revenue - project.cost, code);
+  }
   const minutes = sum(projects.map((p) => p.minutes));
-  const net = revenue - cost;
+  const hours = minutes / 60;
+  const hourly: MoneyMap = {};
+  if (hours > 0) {
+    for (const [code, value] of Object.entries(net)) hourly[code] = value / hours;
+  }
   return {
     revenue,
     cost,
     net,
     minutes,
-    hourly: minutes > 0 ? net / (minutes / 60) : 0,
+    hourly,
   };
 }
 
@@ -528,6 +628,7 @@ export function incomeProjectStats(p: IncomeProject) {
   return {
     net,
     hourly: p.minutes > 0 ? net / (p.minutes / 60) : 0,
+    currency: p.currency ?? getActiveCurrency(),
   };
 }
 

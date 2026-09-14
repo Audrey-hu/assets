@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, EmptyState, IconBubble, Progress, Segmented } from "@/components/ui/display";
 import { PhotoThumb } from "@/components/PhotoGrid";
+import { Money } from "@/components/ui/money";
 import { useApp } from "@/store/app-store";
 import { useEditors, useUI } from "@/store/ui-store";
 import { hobbyStats, hobbySessionsThisWeek } from "@/lib/stats";
@@ -111,11 +112,19 @@ function HobbyCard({ hobby }: { hobby: Hobby }) {
           <div className="mt-1 text-[11.5px] text-muted-foreground">{stats.sessions} sessions</div>
         </div>
         <div>
-          <div className="numeral text-[22px] font-medium leading-none text-foreground">
-            {fmtMoney(stats.invested, { compact: true })}
-          </div>
+          <Money
+            map={stats.invested}
+            compact
+            className="text-[22px] font-medium leading-none text-foreground"
+          />
           <div className="mt-1 text-[11.5px] text-muted-foreground">
-            {stats.minutes > 0 ? `${fmtMoney(stats.costPerHour, { decimals: 1 })}/h` : "投入"}
+            {stats.minutes > 0 ? (
+              <>
+                <Money map={stats.costPerHour} decimals={1} /> /h
+              </>
+            ) : (
+              "投入"
+            )}
           </div>
         </div>
       </div>

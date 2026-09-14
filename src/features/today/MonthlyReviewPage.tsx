@@ -7,6 +7,7 @@ import { Card, SectionHeader } from "@/components/ui/display";
 import { SheetBody, SheetContent, SheetFooter, SheetHeader } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/form";
 import { CategoryBar, CategoryLegend } from "@/components/charts";
+import { Money } from "@/components/ui/money";
 import { useApp } from "@/store/app-store";
 import { categoryBreakdown, monthSummary } from "@/lib/stats";
 import { fmtHours, fmtMoney, monthKeyToDate, fmtMonthLong } from "@/lib/format";
@@ -90,8 +91,8 @@ export function MonthlyReviewPage({ month }: { month: string }) {
 
       <Card className="grid grid-cols-2 divide-border/70 sm:grid-cols-4 sm:divide-x">
         <Cell label="Time invested" value={fmtHours(summary.minutes)} />
-        <Cell label="Money invested" value={fmtMoney(summary.invested)} />
-        <Cell label="Side income" value={fmtMoney(summary.sideIncome)} tone />
+        <Cell label="Money invested" value={<Money map={summary.invested} />} />
+        <Cell label="Side income" value={<Money map={summary.sideIncome} />} tone />
         <Cell label="Assets created" value={String(summary.assetsCreated)} />
       </Card>
 
@@ -202,7 +203,15 @@ export function MonthlyReviewPage({ month }: { month: string }) {
   );
 }
 
-function Cell({ label, value, tone }: { label: string; value: string; tone?: boolean }) {
+function Cell({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: React.ReactNode;
+  tone?: boolean;
+}) {
   return (
     <div className="border-b border-border/70 p-4 last:border-b-0 sm:border-b-0">
       <div className="label-caps">{label}</div>

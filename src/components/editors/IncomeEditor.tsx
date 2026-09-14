@@ -3,24 +3,26 @@ import { Dialog } from "@radix-ui/react-dialog";
 import { SheetBody, SheetContent, SheetFooter, SheetHeader } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Chip, Field, Input, Select, Textarea } from "@/components/ui/form";
-import { DecimalInput, MoneyInput } from "./fields";
+import { CurrencyPicker, DecimalInput, MoneyInput } from "./fields";
 import { INCOME_TYPE } from "@/lib/labels";
 import { fmtMoney, todayISO } from "@/lib/format";
 import { uid } from "@/lib/utils";
 import { useApp } from "@/store/app-store";
 import { useUI } from "@/store/ui-store";
 import type { IncomeProject, IncomeType } from "@/lib/types";
+import type { CurrencyCode } from "@/lib/format";
 
 export function IncomeEditor() {
   const { modal, payload, closeModal, askConfirm } = useUI();
   const open = modal === "income";
   const initial = (payload.initial ?? {}) as Partial<IncomeProject>;
-  const { data, saveIncome, deleteIncome } = useApp();
+  const { data, settings, saveIncome, deleteIncome } = useApp();
 
   const [name, setName] = useState("");
   const [type, setType] = useState<IncomeType>("oneoff");
   const [revenue, setRevenue] = useState<number | undefined>();
   const [cost, setCost] = useState<number | undefined>();
+  const [currency, setCurrency] = useState<CurrencyCode>("CNY");
   const [hours, setHours] = useState<number | undefined>();
   const [date, setDate] = useState(todayISO());
   const [assetId, setAssetId] = useState<string>("");
@@ -33,6 +35,7 @@ export function IncomeEditor() {
     setType(initial.type ?? "oneoff");
     setRevenue(initial.revenue);
     setCost(initial.cost);
+    setCurrency(initial.currency ?? settings.currency);
     setHours(initial.minutes ? Math.round((initial.minutes / 60) * 10) / 10 : undefined);
     setDate(initial.date ?? todayISO());
     setAssetId(initial.assetId ?? "");
@@ -61,6 +64,7 @@ export function IncomeEditor() {
       type,
       revenue,
       cost: cost ?? 0,
+      currency,
       minutes,
       date,
       assetId: assetId || undefined,
@@ -97,12 +101,16 @@ export function IncomeEditor() {
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="收入">
-              <MoneyInput value={revenue} onChange={setRevenue} />
+              <MoneyInput value={revenue} onChange={setRevenue} currency={currency} />
             </Field>
             <Field label="成本">
-              <MoneyInput value={cost} onChange={setCost} />
+              <MoneyInput value={cost} onChange={setCost} currency={currency} />
             </Field>
           </div>
+
+          <Field label="币种" hint="这个项目用哪种货币结算">
+            <CurrencyPicker value={currency} onChange={setCurrency} />
+          </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="投入时间" hint="小时">
               <DecimalInput

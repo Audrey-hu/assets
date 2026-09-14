@@ -12,11 +12,12 @@ import {
 } from "@/components/ui/display";
 import { SimpleLineChart, TrendChart } from "@/components/charts";
 import { EventTimeline } from "@/components/EventTimeline";
+import { Money } from "@/components/ui/money";
 import { useApp } from "@/store/app-store";
 import { useEditors, useUI } from "@/store/ui-store";
 import { useFocus } from "@/store/focus-store";
 import { journeyStats, journeyTrend, stageStats } from "@/lib/stats";
-import { fmtDate, fmtDaysCount, fmtHours, fmtMoney, fmtMonthLong } from "@/lib/format";
+import { fmtDate, fmtDaysCount, fmtHours, fmtMonthLong } from "@/lib/format";
 import { JOURNEY_KIND, STAGE_PHASE, STAGE_STATUS } from "@/lib/labels";
 import { differenceInCalendarDays } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -96,7 +97,7 @@ export function JourneyDetailPage({ journeyId }: { journeyId: string }) {
       <div className="grid grid-cols-2 gap-3 pt-4 sm:grid-cols-4">
         <StatTile label="Days on journey" value={String(stats.days)} />
         <StatTile label="Time invested" value={fmtHours(stats.minutes)} />
-        <StatTile label="Money invested" value={fmtMoney(stats.invested, { compact: true })} />
+        <StatTile label="Money invested" value={<Money map={stats.invested} compact />} />
         <StatTile label="Sessions" value={String(stats.sessions)} />
       </div>
 
@@ -255,7 +256,12 @@ export function JourneyDetailPage({ journeyId }: { journeyId: string }) {
                       <span className="numeral">{stage.progress}%</span>
                       <span className="numeral">
                         {fmtHours(st.minutes)} · {st.sessions} 次
-                        {st.invested > 0 ? ` · ${fmtMoney(st.invested, { compact: true })}` : ""}
+                        {Object.keys(st.invested).length > 0 ? (
+                          <>
+                            {" · "}
+                            <Money map={st.invested} compact />
+                          </>
+                        ) : null}
                       </span>
                     </div>
                   </div>
@@ -264,7 +270,7 @@ export function JourneyDetailPage({ journeyId }: { journeyId: string }) {
                       <div className="label-caps text-primary/80">Stage Summary</div>
                       <p className="mt-1 text-[12.5px] text-foreground/80">
                         {STAGE_PHASE[stage.phase]} Completed · {st.days} 天 · {fmtHours(st.minutes)} ·{" "}
-                        {fmtMoney(st.invested)}
+                        <Money map={st.invested} />
                       </p>
                     </div>
                   )}
@@ -289,7 +295,7 @@ export function JourneyDetailPage({ journeyId }: { journeyId: string }) {
   );
 }
 
-function StatTile({ label, value }: { label: string; value: string }) {
+function StatTile({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="surface px-4 py-3.5">
       <div className="label-caps">{label}</div>

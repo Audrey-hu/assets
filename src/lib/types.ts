@@ -137,6 +137,8 @@ export interface LifeEvent {
   endTime?: string;
   durationMin?: number;
   amount?: number;
+  /** 这笔钱的币种；不填表示跟随应用的记账币种 */
+  currency?: CurrencyCode;
   moneyType?: "expense" | "income";
   expenseCategory?: ExpenseCategory;
   title: string;
@@ -166,6 +168,7 @@ export interface Course {
   journeyId?: ID;
   name: string;
   totalPrice: number;
+  currency?: CurrencyCode;
   totalLessons: number;
   completedLessons: number;
   note?: string;
@@ -185,6 +188,7 @@ export interface IncomeProject {
   type: IncomeType;
   revenue: number;
   cost: number;
+  currency?: CurrencyCode;
   minutes: number;
   date: string;
   assetId?: ID;
@@ -221,6 +225,7 @@ export interface Asset {
   minutes: number;
   cost: number;
   incomeGenerated: number;
+  currency?: CurrencyCode;
   sourceHobbyId?: ID;
   sourceJourneyId?: ID;
   sourceIncomeId?: ID;
@@ -243,6 +248,7 @@ export interface SavingsItem {
   id: ID;
   kind: SavingsKindWithEnvelope;
   name: string;
+  currency?: CurrencyCode;
   /** reservoir / emergency */
   current?: number;
   target?: number;
@@ -273,6 +279,7 @@ export interface Investment {
   name: string;
   /** 自由文本，用户想怎么分就怎么分 */
   category: string;
+  currency?: CurrencyCode;
   /** 累计投入本金 */
   cost: number;
   /** 当前市值；没有更新过就留空，按本金计入总额 */
@@ -289,6 +296,7 @@ export interface SavingsTx {
   id: ID;
   itemId: ID;
   amount: number;
+  currency?: CurrencyCode;
   reason: string;
   date: string;
   createdAt: string;
@@ -298,6 +306,8 @@ export interface SavingsSnapshot {
   id: ID;
   month: string;
   total: number;
+  /** 多币种：按币种分开存 */
+  totals?: Record<string, number>;
 }
 
 /* ------------------------------------------------------------------ *

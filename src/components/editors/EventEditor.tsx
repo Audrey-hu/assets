@@ -3,12 +3,13 @@ import { Dialog } from "@radix-ui/react-dialog";
 import { SheetContent, SheetFooter, SheetHeader, SheetBody } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Chip, Field, Input, Select, Textarea } from "@/components/ui/form";
-import { DecimalInput, MoneyInput, TargetPicker, TimeInput } from "./fields";
+import { CurrencyPicker, DecimalInput, MoneyInput, TargetPicker, TimeInput } from "./fields";
 import { PhotoGrid, PhotoPickerInput } from "@/components/PhotoGrid";
 import { useApp } from "@/store/app-store";
 import { useEditors, useUI } from "@/store/ui-store";
 import { EXPENSE_CATEGORY, EXPENSE_CATEGORY_ORDER, MOOD, MOOD_ORDER, TIME_CATEGORY, TIME_CATEGORY_ORDER } from "@/lib/labels";
 import { fmtDate, minutesBetween, todayISO } from "@/lib/format";
+import type { CurrencyCode } from "@/lib/format";
 import { uid } from "@/lib/utils";
 import type { EventType, ExpenseCategory, LifeEvent, Mood, TimeCategory } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -36,7 +37,7 @@ export function EventEditor() {
   const lockType = payload.lockType as EventType | undefined;
   const heading = (payload.heading as string | undefined) ?? (initial.id ? "编辑记录" : "新增记录");
 
-  const { saveEvent, deleteEvent, addPhotos, deletePhotos } = useApp();
+  const { settings, saveEvent, deleteEvent, addPhotos, deletePhotos } = useApp();
   const { newAsset } = useEditors();
   const [type, setType] = useState<EventType>(lockType ?? initial.type ?? "session");
   const [title, setTitle] = useState(initial.title ?? "");
@@ -46,6 +47,7 @@ export function EventEditor() {
   const [durationRaw, setDurationRaw] = useState<number | undefined>(initial.durationMin);
   const [durationTouched, setDurationTouched] = useState(Boolean(initial.durationMin));
   const [amount, setAmount] = useState<number | undefined>(initial.amount);
+  const [currency, setCurrency] = useState<CurrencyCode>(initial.currency ?? "CNY");
   const [expenseCategory, setExpenseCategory] = useState<ExpenseCategory>(
     initial.expenseCategory ?? "course",
   );
@@ -72,6 +74,7 @@ export function EventEditor() {
     setDurationRaw(initial.durationMin);
     setDurationTouched(Boolean(initial.durationMin));
     setAmount(initial.amount);
+    setCurrency(initial.currency ?? settings.currency);
     setExpenseCategory(initial.expenseCategory ?? "course");
     setTimeCategory(initial.timeCategory);
     setMood(initial.mood);
@@ -116,6 +119,7 @@ export function EventEditor() {
       endTime: isTime ? endTime : undefined,
       durationMin: isTime ? effectiveDuration : undefined,
       amount,
+      currency: amount === undefined ? undefined : currency,
       moneyType: type === "expense" ? "expense" : type === "income" ? "income" : initial.moneyType,
       expenseCategory: type === "expense" ? expenseCategory : initial.expenseCategory,
       title: title.trim(),
@@ -253,7 +257,7 @@ export function EventEditor() {
           {(type === "expense" || type === "income") && (
             <div className="grid grid-cols-2 gap-3">
               <Field label={type === "expense" ? "金额" : "金额"} error={errors.amount}>
-                <MoneyInput value={amount} onChange={setAmount} />
+                <MoneyInput value={amount} onChange={setAmount} currency={currency} />
               </Field>
               {type === "expense" && (
                 <Field label="类型">
@@ -270,6 +274,12 @@ export function EventEditor() {
                 </Field>
               )}
             </div>
+          )}
+
+          {(type === "expense" || type === "income") && (
+            <Field label="币种" hint="这笔钱用哪种货币记">
+              <CurrencyPicker value={currency} onChange={setCurrency} />
+            </Field>
           )}
 
           {isTime && (

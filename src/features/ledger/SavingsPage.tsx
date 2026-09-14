@@ -14,12 +14,19 @@ import {
   savingsSeries,
   savingsTotals,
 } from "@/lib/stats";
-import { fmtDate, fmtMoney } from "@/lib/format";
+import {
+  dominantMoney,
+  fmtDate,
+  fmtMoney,
+  fmtMoneyMap,
+  hasMoney,
+} from "@/lib/format";
+import { Money } from "@/components/ui/money";
 import { differenceInCalendarDays } from "date-fns";
 import type { SavingsItem } from "@/lib/types";
 
 export function SavingsPage() {
-  const { data, settings } = useApp();
+  const { data } = useApp();
   const { openModal } = useUI();
   const { newSavings, newSavingsTx } = useEditors();
 
@@ -28,14 +35,12 @@ export function SavingsPage() {
   const maturities = useMemo(() => maturityList(data.savings), [data.savings]);
   const series = useMemo(
     () =>
-      savingsSeries(data.snapshots, totals.total).map((row) => ({
-        label: row.label,
-        value: row.total,
-      })),
+      savingsSeries(data.snapshots, totals.total),
     [data.snapshots, totals.total],
   );
-  const nextMilestone = SAVINGS_MILESTONES.find((m) => m > totals.total);
-  const currency = settings.currency;
+  /* 里程碑只能按一个币种算，取金额最大的那个 */
+  const milestoneBase = dominantMoney(totals.total);
+  const nextMilestone = SAVINGS_MILESTONES.find((m) => m > (milestoneBase?.amount ?? 0));
 
   return (
     <div className="space-y-8">
@@ -43,37 +48,33 @@ export function SavingsPage() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <div className="label-caps">Total Savings</div>
-            <div className="mt-2 numeral text-[38px] font-medium leading-none tracking-[-0.03em] text-foreground">
-              {fmtMoney(totals.total, { currency })}
-            </div>
+            <Money
+              map={totals.total}
+              className="mt-2 block text-[38px] font-medium leading-none tracking-[-0.03em] text-foreground"
+            />
           </div>
           <div className="flex gap-6">
             <div>
               <div className="label-caps">Available</div>
-              <div className="mt-2 numeral text-[18px] font-medium text-foreground">
-                {fmtMoney(totals.available, { currency })}
-              </div>
+              <Money map={totals.available} className="mt-2 block text-[18px] font-medium text-foreground" />
             </div>
             <div>
               <div className="label-caps">Locked</div>
-              <div className="mt-2 numeral text-[18px] font-medium text-foreground">
-                {fmtMoney(totals.locked, { currency })}
-              </div>
+              <Money map={totals.locked} className="mt-2 block text-[18px] font-medium text-foreground" />
             </div>
             <div>
               <div className="label-caps">Liquidity</div>
               <div className="mt-2 numeral text-[18px] font-medium text-primary">
-                {Math.round(totals.liquidity * 100)}%
+                {totals.liquidity === undefined
+                  ? "—"
+                  : `${Math.round(totals.liquidity * 100)}%`}
               </div>
             </div>
           </div>
         </div>
-        {totals.envelopeTotal > 0 && (
+        {hasMoney(totals.envelopeTotal) && (
           <p className="mt-3 text-[12.5px] text-muted-foreground">
-            可用金额里含小荷包{" "}
-            <span className="numeral text-foreground/80">
-              {fmtMoney(totals.envelopeTotal, { currency })}
-            </span>
+            可用金额里含小荷包 <Money map={totals.envelopeTotal} className="text-foreground/80" />
           </p>
         )}
       </Card>
@@ -92,7 +93,7 @@ export function SavingsPage() {
                   <div>
                     <div className="text-[15px] font-medium text-foreground">{totals.reservoir.name}</div>
                     <div className="text-[12px] text-muted-foreground">
-                      目标 {fmtMoney(totals.reservoir.target ?? 0, { currency })}
+                      目标 {fmtMoney(totals.reservoir.target ?? 0, { currency: totals.reservoir.currency })}
                     </div>
                   </div>
                 </div>
@@ -107,10 +108,10 @@ export function SavingsPage() {
               </div>
               <div className="mt-4 flex items-baseline gap-2">
                 <span className="numeral text-[30px] font-medium leading-none text-foreground">
-                  {fmtMoney(totals.reservoir.current ?? 0, { currency })}
+                  {fmtMoney(totals.reservoir.current ?? 0, { currency: totals.reservoir.currency })}
                 </span>
                 <span className="text-[13px] text-muted-foreground">
-                  / {fmtMoney(totals.reservoir.target ?? 0, { currency })}
+                  / {fmtMoney(totals.reservoir.target ?? 0, { currency: totals.reservoir.currency })}
                 </span>
               </div>
               <div className="mt-4">
@@ -131,7 +132,7 @@ export function SavingsPage() {
                 <div className="rounded-md bg-secondary/50 px-3 py-2.5">
                   <div className="label-caps">每月必要开支</div>
                   <div className="mt-1.5 numeral text-[18px] font-medium text-foreground">
-                    {fmtMoney(totals.reservoir.monthlyEssential ?? 0, { currency })}
+                    {fmtMoney(totals.reservoir.monthlyEssential ?? 0, { currency: totals.reservoir.currency })}
                   </div>
                 </div>
               </div>
@@ -139,7 +140,7 @@ export function SavingsPage() {
                 <p className="mt-3 text-[12.5px] text-muted-foreground">
                   Gap to target{" "}
                   <span className="numeral text-foreground">
-                    {fmtMoney((totals.reservoir.target ?? 0) - (totals.reservoir.current ?? 0), { currency })}
+                    {fmtMoney((totals.reservoir.target ?? 0) - (totals.reservoir.current ?? 0), { currency: totals.reservoir.currency })}
                   </span>
                 </p>
               )}
@@ -154,7 +155,7 @@ export function SavingsPage() {
           )}
 
           {totals.emergency ? (
-            <EmergencyCard item={totals.emergency} currency={currency} />
+            <EmergencyCard item={totals.emergency} currency={totals.emergency.currency} />
           ) : (
             <Card className="flex flex-col items-start gap-3 p-5">
               <p className="text-[13px] text-muted-foreground">还没有设置备用金。</p>
@@ -172,7 +173,7 @@ export function SavingsPage() {
           title="小荷包"
           hint={
             totals.envelopes.length
-              ? `合计 ${fmtMoney(totals.envelopeTotal, { currency })}`
+              ? `合计 ${fmtMoneyMap(totals.envelopeTotal)}`
               : "为某件具体的事单独存钱"
           }
           action={
@@ -223,7 +224,9 @@ export function SavingsPage() {
                           {envelope.name}
                         </div>
                         <div className="text-[12px] text-muted-foreground">
-                          {target > 0 ? `目标 ${fmtMoney(target, { currency })}` : "没有设目标"}
+                          {target > 0
+                            ? `目标 ${fmtMoney(target, { currency: envelope.currency })}`
+                            : "没有设目标"}
                           {envelope.dueDate ? ` · ${fmtDate(envelope.dueDate)} 前` : ""}
                         </div>
                       </div>
@@ -240,11 +243,11 @@ export function SavingsPage() {
 
                   <div className="mt-4 flex items-baseline gap-2">
                     <span className="numeral text-[26px] font-medium leading-none text-foreground">
-                      {fmtMoney(current, { currency })}
+                      {fmtMoney(current, { currency: envelope.currency })}
                     </span>
                     {target > 0 && (
                       <span className="numeral text-[13px] text-muted-foreground">
-                        / {fmtMoney(target, { currency })}
+                        / {fmtMoney(target, { currency: envelope.currency })}
                       </span>
                     )}
                   </div>
@@ -258,8 +261,10 @@ export function SavingsPage() {
                           {done
                             ? "已存够"
                             : months !== undefined
-                              ? `按每月 ${fmtMoney(envelope.monthlyPlan ?? 0, { currency })}，还需 ${months} 个月`
-                              : `还差 ${fmtMoney(target - current, { currency })}`}
+                              ? `按每月 ${fmtMoney(envelope.monthlyPlan ?? 0, {
+                                  currency: envelope.currency,
+                                })}，还需 ${months} 个月`
+                              : `还差 ${fmtMoney(target - current, { currency: envelope.currency })}`}
                         </span>
                       </div>
                     </div>
@@ -305,7 +310,7 @@ export function SavingsPage() {
         ) : (
           <div className="grid gap-3 lg:grid-cols-2">
             {deposits.map((deposit) => (
-              <DepositCard key={deposit.id} item={deposit} currency={currency} />
+              <DepositCard key={deposit.id} item={deposit} currency={deposit.currency} />
             ))}
           </div>
         )}
@@ -334,7 +339,7 @@ export function SavingsPage() {
                       {item.maturityDate ? fmtDate(item.maturityDate).slice(0, 7).replace(".", " / ") : "—"}
                     </span>
                     <span className="flex-1 text-[14px] text-foreground">
-                      {fmtMoney(item.principal ?? 0, { currency })}
+                      {fmtMoney(item.principal ?? 0, { currency: item.currency })}
                       <span className="ml-2 text-[12px] text-muted-foreground">{item.bank}</span>
                     </span>
                     <span className="numeral shrink-0 text-[12px] text-muted-foreground">
@@ -353,15 +358,20 @@ export function SavingsPage() {
         <SectionHeader title="储蓄增长" hint="每月快照" />
         <Card className="p-4 pt-5">
           <TrendChart
-            data={series}
+            data={series.rows.map((row) => ({ label: row.label, value: row.total }))}
             color="#3F5F4E"
             formatter={(value) => `${Math.round(value / 1000)}k`}
             yWidth={38}
           />
         </Card>
+        {series.code && (
+          <p className="mt-2 text-[12px] text-muted-foreground">
+            曲线只画 {series.code} 这一个币种（取金额最大的那个）。
+          </p>
+        )}
         <div className="mt-3 flex flex-wrap gap-2">
           {SAVINGS_MILESTONES.map((milestone) => {
-            const achieved = totals.total >= milestone;
+            const achieved = (milestoneBase?.amount ?? 0) >= milestone;
             return (
               <span
                 key={milestone}
@@ -382,11 +392,17 @@ export function SavingsPage() {
             <div className="flex items-baseline justify-between text-[12.5px] text-muted-foreground">
               <span>距离 {nextMilestone / 10000} 万</span>
               <span className="numeral">
-                {fmtMoney(nextMilestone - totals.total, { currency })} to go
+                {fmtMoney(nextMilestone - (milestoneBase?.amount ?? 0), {
+                  currency: milestoneBase?.code,
+                })}{" "}
+                to go
               </span>
             </div>
             <div className="mt-2">
-              <Progress value={(totals.total / nextMilestone) * 100} height={5} />
+              <Progress
+                value={((milestoneBase?.amount ?? 0) / nextMilestone) * 100}
+                height={5}
+              />
             </div>
           </div>
         )}
@@ -400,7 +416,7 @@ function EmergencyCard({
   currency,
 }: {
   item: SavingsItem;
-  currency: string;
+  currency?: string;
 }) {
   const { data } = useApp();
   const { openModal } = useUI();
@@ -475,7 +491,7 @@ function EmergencyCard({
   );
 }
 
-function DepositCard({ item, currency }: { item: SavingsItem; currency: string }) {
+function DepositCard({ item, currency }: { item: SavingsItem; currency?: string }) {
   const { openModal } = useUI();
   const days = item.maturityDate
     ? differenceInCalendarDays(new Date(item.maturityDate), new Date())

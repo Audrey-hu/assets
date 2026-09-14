@@ -11,6 +11,7 @@ import {
   SectionHeader,
 } from "@/components/ui/display";
 import { EventTimeline } from "@/components/EventTimeline";
+import { Money } from "@/components/ui/money";
 import { PhotoGrid } from "@/components/PhotoGrid";
 import { useApp } from "@/store/app-store";
 import { useEditors, useUI } from "@/store/ui-store";
@@ -108,8 +109,14 @@ export function HobbyDetailPage({ hobbyId }: { hobbyId: string }) {
           <Metric label="Total practice" value={fmtHours(stats.minutes)} sub={`${stats.sessions} sessions`} />
           <Metric
             label="Invested"
-            value={fmtMoney(stats.invested)}
-            sub={stats.minutes > 0 ? `${fmtMoney(stats.costPerHour, { decimals: 1 })} / hour` : undefined}
+            value={<Money map={stats.invested} />}
+            sub={
+              stats.minutes > 0 ? (
+                <>
+                  <Money map={stats.costPerHour} decimals={1} /> / hour
+                </>
+              ) : undefined
+            }
           />
           <Metric
             label="This month"
@@ -261,10 +268,18 @@ export function HobbyDetailPage({ hobbyId }: { hobbyId: string }) {
         <SectionHeader title="Cost Per Hour" hint="看看器材和课程有没有真的被用起来" />
         <Card className="divide-y divide-border/70 px-5">
           <KeyValue label="累计投入时间" value={fmtMinutes(stats.minutes)} />
-          <KeyValue label="累计花费" value={fmtMoney(stats.invested)} />
+          <KeyValue label="累计花费" value={<Money map={stats.invested} />} />
           <KeyValue
             label="每小时成本"
-            value={stats.minutes > 0 ? `${fmtMoney(stats.costPerHour, { decimals: 1 })} / hour` : "—"}
+            value={
+              stats.minutes > 0 ? (
+                <>
+                  <Money map={stats.costPerHour} decimals={1} /> / hour
+                </>
+              ) : (
+                "—"
+              )
+            }
           />
           {stats.firstSessionDate && (
             <KeyValue label="第一次记录" value={fmtDate(stats.firstSessionDate)} />
@@ -289,7 +304,15 @@ export function HobbyDetailPage({ hobbyId }: { hobbyId: string }) {
   );
 }
 
-function Metric({ label, value, sub }: { label: string; value: string; sub?: string }) {
+function Metric({
+  label,
+  value,
+  sub,
+}: {
+  label: string;
+  value: React.ReactNode;
+  sub?: React.ReactNode;
+}) {
   return (
     <div className="border-b border-border/70 p-4 last:border-b-0 sm:border-b-0">
       <div className="label-caps">{label}</div>

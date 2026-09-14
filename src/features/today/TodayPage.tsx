@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, EmptyState, Progress, SectionHeader } from "@/components/ui/display";
 import { CategoryBar, CategoryLegend } from "@/components/charts";
+import { Money } from "@/components/ui/money";
 import { useApp } from "@/store/app-store";
 import { useEditors, useUI } from "@/store/ui-store";
 import { useFocus } from "@/store/focus-store";
@@ -20,7 +21,7 @@ import { monthKey, weekdayLabel, monthDayLabel, todayISO } from "@/lib/format";
 import type { Hobby, Journey } from "@/lib/types";
 
 export function TodayPage() {
-  const { data, settings } = useApp();
+  const { data } = useApp();
   const { openModal } = useUI();
   const { newEvent, logTime } = useEditors();
   const { startFocus } = useFocus();
@@ -222,19 +223,18 @@ export function TodayPage() {
                 <span>{summary.sessions} 次记录</span>
                 <span className="text-border">·</span>
                 <span>
-                  个人投入{" "}
-                  <span className="numeral text-foreground">
-                    {fmtMoney(summary.invested, { currency: settings.currency })}
-                  </span>
+                  个人投入 <Money map={summary.invested} className="text-foreground" />
                 </span>
               </div>
             </div>
             <div className="divide-y divide-border/70">
               <div className="flex items-center justify-between gap-4 px-5 py-3.5">
                 <span className="text-[13px] text-muted-foreground">业余收入</span>
-                <span className="numeral text-[16px] font-medium text-primary">
-                  {fmtMoney(summary.sideIncome, { currency: settings.currency })}
-                </span>
+                <Money
+                  map={summary.sideIncome}
+                  className="text-[16px] font-medium text-primary"
+                  stacked
+                />
               </div>
               <div className="flex items-center justify-between gap-4 px-5 py-3.5">
                 <span className="text-[13px] text-muted-foreground">新增资产</span>
@@ -244,9 +244,11 @@ export function TodayPage() {
               </div>
               <div className="flex items-center justify-between gap-4 px-5 py-3.5">
                 <span className="text-[13px] text-muted-foreground">净收入</span>
-                <span className="numeral text-[16px] font-medium text-foreground">
-                  {fmtMoney(summary.netIncome, { currency: settings.currency })}
-                </span>
+                <Money
+                  map={summary.netIncome}
+                  className="text-[16px] font-medium text-foreground"
+                  stacked
+                />
               </div>
             </div>
           </div>
@@ -427,9 +429,7 @@ function JourneyContinueCard({
           <div className="numeral text-[22px] font-medium leading-none text-foreground">
             {fmtHours(stats.minutes)}
           </div>
-          <div className="mt-1 text-[12px] text-muted-foreground">
-            {fmtMoney(stats.invested, { compact: true })}
-          </div>
+          <Money map={stats.invested} compact className="mt-1 block text-[12px] text-muted-foreground" />
         </div>
       </div>
       <div className="space-y-2">

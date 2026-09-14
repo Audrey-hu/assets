@@ -3,7 +3,7 @@ import { Dialog } from "@radix-ui/react-dialog";
 import { SheetBody, SheetContent, SheetFooter, SheetHeader } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Select, Field, Input, Textarea } from "@/components/ui/form";
-import { DecimalInput, MoneyInput } from "./fields";
+import { CurrencyPicker, DecimalInput, MoneyInput } from "./fields";
 import { PhotoGrid, PhotoPickerInput } from "@/components/PhotoGrid";
 import { ASSET_TYPE, ASSET_TYPE_ORDER } from "@/lib/labels";
 import { todayISO } from "@/lib/format";
@@ -11,18 +11,20 @@ import { uid } from "@/lib/utils";
 import { useApp } from "@/store/app-store";
 import { useUI } from "@/store/ui-store";
 import type { Asset, AssetType } from "@/lib/types";
+import type { CurrencyCode } from "@/lib/format";
 
 export function AssetEditor() {
   const { modal, payload, closeModal, askConfirm } = useUI();
   const open = modal === "asset";
   const initial = (payload.initial ?? {}) as Partial<Asset>;
-  const { data, saveAsset, deleteAsset, addPhotos, deletePhotos } = useApp();
+  const { data, settings, saveAsset, deleteAsset, addPhotos, deletePhotos } = useApp();
 
   const [name, setName] = useState("");
   const [type, setType] = useState<AssetType>("skill");
   const [createdDate, setCreatedDate] = useState(todayISO());
   const [hours, setHours] = useState<number | undefined>();
   const [cost, setCost] = useState<number | undefined>();
+  const [currency, setCurrency] = useState<CurrencyCode>("CNY");
   const [incomeGenerated, setIncomeGenerated] = useState<number | undefined>();
   const [sourceHobbyId, setSourceHobbyId] = useState("");
   const [sourceJourneyId, setSourceJourneyId] = useState("");
@@ -38,6 +40,7 @@ export function AssetEditor() {
     setCreatedDate(initial.createdDate ?? todayISO());
     setHours(initial.minutes ? Math.round((initial.minutes / 60) * 10) / 10 : undefined);
     setCost(initial.cost);
+    setCurrency(initial.currency ?? settings.currency);
     setIncomeGenerated(initial.incomeGenerated);
     setSourceHobbyId(initial.sourceHobbyId ?? "");
     setSourceJourneyId(initial.sourceJourneyId ?? "");
@@ -61,6 +64,7 @@ export function AssetEditor() {
       createdDate,
       minutes: hours ? Math.round(hours * 60) : 0,
       cost: cost ?? 0,
+      currency,
       incomeGenerated: incomeGenerated ?? 0,
       sourceHobbyId: sourceHobbyId || undefined,
       sourceJourneyId: sourceJourneyId || undefined,
@@ -118,12 +122,19 @@ export function AssetEditor() {
               />
             </Field>
             <Field label="成本">
-              <MoneyInput value={cost} onChange={setCost} />
+              <MoneyInput value={cost} onChange={setCost} currency={currency} />
             </Field>
             <Field label="带来收入">
-              <MoneyInput value={incomeGenerated} onChange={setIncomeGenerated} />
+              <MoneyInput
+                value={incomeGenerated}
+                onChange={setIncomeGenerated}
+                currency={currency}
+              />
             </Field>
           </div>
+          <Field label="币种" hint="成本和收入用哪种货币">
+            <CurrencyPicker value={currency} onChange={setCurrency} />
+          </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="来源兴趣" hint="可选">
               <Select

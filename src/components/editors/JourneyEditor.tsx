@@ -3,9 +3,10 @@ import { Dialog } from "@radix-ui/react-dialog";
 import { SheetBody, SheetContent, SheetFooter, SheetHeader } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/form";
-import { AccentPicker, DecimalInput } from "./fields";
+import { AccentPicker, DecimalInput, CurrencyPicker, MoneyInput } from "./fields";
 import { JOURNEY_KIND, JOURNEY_STATUS, STAGE_PHASE, STAGE_PHASE_ORDER } from "@/lib/labels";
 import { fmtDate, fmtMoney, toDate, todayISO } from "@/lib/format";
+import type { CurrencyCode } from "@/lib/format";
 import { uid } from "@/lib/utils";
 import { useApp } from "@/store/app-store";
 import { useUI } from "@/store/ui-store";
@@ -365,10 +366,11 @@ export function CourseEditor() {
   const open = modal === "course";
   const initial = (payload.initial ?? {}) as Partial<import("@/lib/types").Course>;
   const hobbyId = (payload.hobbyId as string | undefined) ?? initial.hobbyId;
-  const { saveCourse, deleteCourse } = useApp();
+  const { settings, saveCourse, deleteCourse } = useApp();
 
   const [name, setName] = useState("");
   const [totalPrice, setTotalPrice] = useState<number | undefined>();
+  const [currency, setCurrency] = useState<CurrencyCode>("CNY");
   const [totalLessons, setTotalLessons] = useState<number | undefined>();
   const [completedLessons, setCompletedLessons] = useState<number | undefined>();
   const [note, setNote] = useState("");
@@ -378,6 +380,7 @@ export function CourseEditor() {
     if (!open) return;
     setName(initial.name ?? "");
     setTotalPrice(initial.totalPrice);
+    setCurrency(initial.currency ?? settings.currency);
     setTotalLessons(initial.totalLessons);
     setCompletedLessons(initial.completedLessons ?? 0);
     setNote(initial.note ?? "");
@@ -401,6 +404,7 @@ export function CourseEditor() {
       journeyId: (payload.journeyId as string | undefined) ?? initial.journeyId,
       name: name.trim(),
       totalPrice: totalPrice ?? 0,
+      currency,
       totalLessons,
       completedLessons: Math.min(completedLessons ?? 0, totalLessons),
       note: note.trim() || undefined,
@@ -425,15 +429,11 @@ export function CourseEditor() {
           </Field>
           <div className="grid grid-cols-3 gap-3">
             <Field label="总价">
-              <Input
-                inputMode="decimal"
-                className="numeral"
+              <MoneyInput
                 placeholder="3600"
-                value={totalPrice ?? ""}
-                onChange={(event) => {
-                  const raw = event.target.value.replace(/[^\d.]/g, "");
-                  setTotalPrice(raw === "" ? undefined : Number(raw));
-                }}
+                currency={currency}
+                value={totalPrice}
+                onChange={setTotalPrice}
               />
             </Field>
             <Field label="总课时">
@@ -463,9 +463,12 @@ export function CourseEditor() {
           </div>
           {totalPrice && totalLessons ? (
             <p className="text-[12.5px] text-muted-foreground">
-              每节课成本约 {fmtMoney(totalPrice / totalLessons)}
+              每节课成本约 {fmtMoney(totalPrice / totalLessons, { currency })}
             </p>
           ) : null}
+          <Field label="币种">
+            <CurrencyPicker value={currency} onChange={setCurrency} />
+          </Field>
           <Field label="备注">
             <Input value={note} onChange={(event) => setNote(event.target.value)} />
           </Field>

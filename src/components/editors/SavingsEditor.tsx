@@ -3,12 +3,13 @@ import { Dialog } from "@radix-ui/react-dialog";
 import { SheetBody, SheetContent, SheetFooter, SheetHeader } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Chip, Field, Input, Select } from "@/components/ui/form";
-import { DecimalInput, EmojiPicker, MoneyInput } from "./fields";
+import { CurrencyPicker, DecimalInput, EmojiPicker, MoneyInput } from "./fields";
 import { fmtDate, fmtMoney, todayISO } from "@/lib/format";
 import { uid } from "@/lib/utils";
 import { useApp } from "@/store/app-store";
 import { useUI } from "@/store/ui-store";
 import type { SavingsItem, SavingsKindWithEnvelope } from "@/lib/types";
+import type { CurrencyCode } from "@/lib/format";
 import { addMonths, format, parseISO } from "date-fns";
 
 const KIND_LABEL: Record<SavingsKindWithEnvelope, string> = {
@@ -24,10 +25,11 @@ export function SavingsEditor() {
   const { modal, payload, closeModal, askConfirm } = useUI();
   const open = modal === "savings";
   const initial = (payload.initial ?? {}) as Partial<SavingsItem>;
-  const { saveSavings, deleteSavings } = useApp();
+  const { settings, saveSavings, deleteSavings } = useApp();
 
   const [kind, setKind] = useState<SavingsKindWithEnvelope>("reservoir");
   const [name, setName] = useState("蓄水池");
+  const [currency, setCurrency] = useState<CurrencyCode>("CNY");
   const [emoji, setEmoji] = useState("🐷");
   const [monthlyPlan, setMonthlyPlan] = useState<number | undefined>();
   const [dueDate, setDueDate] = useState("");
@@ -48,6 +50,7 @@ export function SavingsEditor() {
     const nextKind = initial.kind ?? "reservoir";
     setKind(nextKind);
     setName(initial.name ?? KIND_LABEL[nextKind]);
+    setCurrency(initial.currency ?? settings.currency);
     setEmoji(initial.emoji ?? "🐷");
     setMonthlyPlan(initial.monthlyPlan);
     setDueDate(initial.dueDate ?? "");
@@ -88,6 +91,7 @@ export function SavingsEditor() {
       id: initial.id ?? uid("sav"),
       kind,
       name: name.trim(),
+      currency,
       current: kind === "deposit" ? undefined : (current ?? 0),
       target: kind === "deposit" ? undefined : target,
       monthlyEssential: kind === "reservoir" ? monthlyEssential : undefined,
@@ -136,6 +140,9 @@ export function SavingsEditor() {
           <Field label="名称" error={error}>
             <Input value={name} onChange={(event) => setName(event.target.value)} />
           </Field>
+          <Field label="币种" hint="这一笔用哪种货币">
+            <CurrencyPicker value={currency} onChange={setCurrency} />
+          </Field>
 
           {kind !== "deposit" ? (
             <>
@@ -144,21 +151,29 @@ export function SavingsEditor() {
               )}
               <div className="grid grid-cols-2 gap-3">
                 <Field label="当前金额">
-                  <MoneyInput value={current} onChange={setCurrent} />
+                  <MoneyInput value={current} onChange={setCurrent} currency={currency} />
                 </Field>
                 <Field label="目标金额" hint="可选">
-                  <MoneyInput value={target} onChange={setTarget} />
+                  <MoneyInput value={target} onChange={setTarget} currency={currency} />
                 </Field>
               </div>
               {kind === "reservoir" && (
                 <Field label="每月必要开支" hint="用于计算安全月数">
-                  <MoneyInput value={monthlyEssential} onChange={setMonthlyEssential} />
+                  <MoneyInput
+                    value={monthlyEssential}
+                    onChange={setMonthlyEssential}
+                    currency={currency}
+                  />
                 </Field>
               )}
               {kind === "envelope" && (
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="每月计划存" hint="可选">
-                    <MoneyInput value={monthlyPlan} onChange={setMonthlyPlan} />
+                    <MoneyInput
+                      value={monthlyPlan}
+                      onChange={setMonthlyPlan}
+                      currency={currency}
+                    />
                   </Field>
                   <Field label="想什么时候用" hint="可选">
                     <Input
@@ -181,7 +196,7 @@ export function SavingsEditor() {
                   />
                 </Field>
                 <Field label="本金">
-                  <MoneyInput value={principal} onChange={setPrincipal} />
+                  <MoneyInput value={principal} onChange={setPrincipal} currency={currency} />
                 </Field>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -301,6 +316,7 @@ export function SavingsTxEditor() {
       id: uid("stx"),
       itemId,
       amount: signed,
+      currency: item.currency,
       reason: reason.trim(),
       date,
       createdAt: now,
@@ -329,7 +345,7 @@ export function SavingsTxEditor() {
             </div>
           </Field>
           <Field label="金额" error={error}>
-            <MoneyInput value={amount} onChange={setAmount} />
+            <MoneyInput value={amount} onChange={setAmount} currency={item?.currency} />
           </Field>
           <Field label="原因">
             <Input
@@ -343,13 +359,14 @@ export function SavingsTxEditor() {
           </Field>
           {item && (
             <p className="text-[12.5px] text-muted-foreground">
-              当前 {fmtMoney(item.current ?? 0)} →{" "}
+              当前 {fmtMoney(item.current ?? 0, { currency: item.currency })} →{" "}
               <span className="numeral text-foreground">
                 {fmtMoney(
                   Math.max(
                     0,
                     (item.current ?? 0) + (direction === "in" ? (amount ?? 0) : -(amount ?? 0)),
                   ),
+                  { currency: item.currency },
                 )}
               </span>
             </p>

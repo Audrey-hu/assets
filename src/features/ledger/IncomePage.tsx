@@ -3,6 +3,7 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, EmptyState, SectionHeader } from "@/components/ui/display";
 import { Chip } from "@/components/ui/form";
+import { Money } from "@/components/ui/money";
 import { useApp } from "@/store/app-store";
 import { useEditors, useUI } from "@/store/ui-store";
 import { incomeProjectStats, incomeStats } from "@/lib/stats";
@@ -29,10 +30,21 @@ export function IncomePage() {
   return (
     <div className="space-y-8">
       <Card className="grid grid-cols-2 divide-border/70 sm:grid-cols-4 sm:divide-x">
-        <Cell label="Revenue" value={fmtMoney(totals.revenue)} />
-        <Cell label="Cost" value={fmtMoney(totals.cost)} />
-        <Cell label="Net Income" value={fmtMoney(totals.net)} tone />
-        <Cell label="Hourly Rate" value={totals.minutes > 0 ? `${fmtMoney(totals.hourly, { decimals: 0 })}/h` : "—"} />
+        <Cell label="Revenue" value={<Money map={totals.revenue} />} />
+        <Cell label="Cost" value={<Money map={totals.cost} />} />
+        <Cell label="Net Income" value={<Money map={totals.net} />} tone />
+        <Cell
+          label="Hourly Rate"
+          value={
+            totals.minutes > 0 ? (
+              <>
+                <Money map={totals.hourly} />/h
+              </>
+            ) : (
+              "—"
+            )
+          }
+        />
       </Card>
 
       <section>
@@ -156,7 +168,15 @@ export function IncomePage() {
   );
 }
 
-function Cell({ label, value, tone }: { label: string; value: string; tone?: boolean }) {
+function Cell({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: React.ReactNode;
+  tone?: boolean;
+}) {
   return (
     <div className="border-b border-border/70 p-4 last:border-b-0 sm:border-b-0">
       <div className="label-caps">{label}</div>

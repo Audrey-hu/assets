@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/store/app-store";
 import { Chip, Field, Input } from "@/components/ui/form";
-import { currencySymbol } from "@/lib/format";
+import { CURRENCIES, currencySymbol, type CurrencyCode } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { AccentKey } from "@/lib/types";
 import { ACCENT_CLASS } from "@/components/ui/display";
@@ -126,18 +126,62 @@ export function MoneyInput({
   value,
   onChange,
   placeholder = "0",
+  currency,
 }: {
   value: number | undefined;
   onChange: (value: number | undefined) => void;
   placeholder?: string;
+  /** 这条记录自己的币种；不传就跟随应用的默认币种 */
+  currency?: string;
 }) {
   return (
     <DecimalInput
       value={value}
       onChange={onChange}
       placeholder={placeholder}
-      prefix={currencySymbol()}
+      prefix={currencySymbol(currency)}
     />
+  );
+}
+
+/** 单条记录的币种选择器 */
+export function CurrencyPicker({
+  value,
+  onChange,
+  className,
+}: {
+  value: CurrencyCode;
+  onChange: (value: CurrencyCode) => void;
+  className?: string;
+}) {
+  return (
+    <div className={cn("relative inline-flex", className)}>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value as CurrencyCode)}
+        className={cn(
+          "h-9 w-full appearance-none rounded-md border border-input/90 bg-card pl-3 pr-8",
+          "text-[13px] text-foreground transition-colors",
+          "focus:border-primary/45 focus:outline-none focus:ring-2 focus:ring-ring/15",
+        )}
+      >
+        {CURRENCIES.map((item) => (
+          <option key={item.code} value={item.code}>
+            {item.symbol} {item.label}
+          </option>
+        ))}
+      </select>
+      <svg
+        aria-hidden
+        viewBox="0 0 20 20"
+        className="pointer-events-none absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+      >
+        <path d="M6 8l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </div>
   );
 }
 
