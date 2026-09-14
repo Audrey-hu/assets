@@ -86,6 +86,17 @@ export function planSync(input: {
       }
       continue;
     }
+
+    /*
+     * 本地刚把这条删掉（墓碑比云端这份还新）时，绝对不能拉回来。
+     *
+     * 否则会出现最让人困惑的现象：刚删的记录当场复活，
+     * 而云端在同一轮同步里已经被标记成删除 —— 要等下一次同步才真正消失。
+     * 该删就交给下面的墓碑逻辑去推。
+     */
+    const tomb = tombstones[k];
+    if (tomb && tomb >= row.updated_at && !cloudWins) continue;
+
     if (!mine || cloudWins || mine.updatedAt < row.updated_at) {
       plan.pull.push(row);
       if (mine) localMap.set(k, { ...mine, updatedAt: row.updated_at, data: row.data ?? {} });

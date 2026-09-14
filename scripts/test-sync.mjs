@@ -145,6 +145,25 @@ console.log("\n同步合并规则\n");
 }
 
 {
+  /* 这是「删掉的记录又出现」的根因：本地已删，云端还留着旧副本 */
+  const p = plan([], [remoteRow("events", "e1", T(2))], { [keyOf("events", "e1")]: T(5) });
+  check(
+    "本地已删 + 云端有旧副本 → 不能拉回来",
+    p.pull.length === 0 && p.push.length === 1 && p.push[0].deleted === true,
+    JSON.stringify(p),
+  );
+}
+
+{
+  const p = plan([], [remoteRow("events", "e1", T(2))], { [keyOf("events", "e1")]: T(2) });
+  check(
+    "墓碑与云端同样新 → 仍然以删除为准",
+    p.pull.length === 0 && p.push.length === 0,
+    JSON.stringify(p),
+  );
+}
+
+{
   const p = plan([], [remoteRow("events", "e1", T(7))], { [keyOf("events", "e1")]: T(5) });
   check(
     "删除之后云端改过 → 以云端为准",
