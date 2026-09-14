@@ -477,18 +477,51 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   /* ------------------------------- events ------------------------------ */
 
+  /** 增减某门课的已完成课时（记录驱动，不写进课程编辑器里） */
+  const bumpCourseLessons = useCallback(
+    async (courseId: string, delta: number) => {
+      const course = data.courses.find((c) => c.id === courseId);
+      if (!course) return;
+      const completedLessons = Math.max(
+        0,
+        Math.min(course.totalLessons, course.completedLessons + delta),
+      );
+      if (completedLessons === course.completedLessons) return;
+      const next = { ...course, completedLessons, updatedAt: new Date().toISOString() };
+      await putRecord("courses", next);
+      setData((prev) => ({
+        ...prev,
+        courses: prev.courses.map((c) => (c.id === courseId ? next : c)),
+      }));
+    },
+    [data.courses],
+  );
+
   const saveEvent = useCallback(
     async (event: LifeEvent, options?: { silent?: boolean }) => {
       const next = { ...event, updatedAt: new Date().toISOString() };
+      const previous = data.events.find((e) => e.id === next.id);
       await putRecord("events", next);
       setData((prev) => {
         const exists = prev.events.some((e) => e.id === next.id);
         const events = exists ? prev.events.map((e) => (e.id === next.id ? next : e)) : [...prev.events, next];
         return { ...prev, events };
       });
+      /*
+       * 课程联动：一条算得上「课时」的记录（有 courseId、有时长）产生或消失时，
+       * 该课程的剩余课时自动跟着走，不用再手动去编辑课程。
+       */
+      const wasLesson = Boolean(previous?.courseId) && (previous?.durationMin ?? 0) > 0;
+      const isLesson = Boolean(next.courseId) && (next.durationMin ?? 0) > 0;
+      if (wasLesson && previous!.courseId !== next.courseId) {
+        await bumpCourseLessons(previous!.courseId!, -1);
+      }
+      if (isLesson && (!wasLesson || previous!.courseId !== next.courseId)) {
+        await bumpCourseLessons(next.courseId!, 1);
+      }
       if (!options?.silent) notify("已保存", "success");
     },
-    [notify],
+    [bumpCourseLessons, data.events, notify],
   );
 
   const deleteEvent = useCallback(
@@ -498,10 +531,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         deleteRecord("events", id),
         deleteMany("photos", target?.photoIds ?? []),
       ]);
+      if (target?.courseId && (target.durationMin ?? 0) > 0) {
+        await bumpCourseLessons(target.courseId, -1);
+      }
       setData((prev) => ({ ...prev, events: prev.events.filter((e) => e.id !== id) }));
       notify("已删除记录");
     },
-    [data.events, notify],
+    [bumpCourseLessons, data.events, notify],
   );
 
   /* ------------------------------ courses ------------------------------ */

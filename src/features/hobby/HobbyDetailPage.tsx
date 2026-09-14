@@ -23,7 +23,7 @@ import type { LifeEvent } from "@/lib/types";
 import { uid } from "@/lib/utils";
 
 export function HobbyDetailPage({ hobbyId }: { hobbyId: string }) {
-  const { data, saveCourse, saveEvent, notify } = useApp();
+  const { data, saveEvent, notify } = useApp();
   const { openModal } = useUI();
   const { newExpense, newNote, newMilestone, logTime } = useEditors();
   const { startFocus } = useFocus();
@@ -79,7 +79,7 @@ export function HobbyDetailPage({ hobbyId }: { hobbyId: string }) {
       updatedAt: now,
     };
     await saveEvent(event, { silent: true });
-    await saveCourse({ ...course, completedLessons: course.completedLessons + 1 });
+    /* 课程剩余课时由这条记录自动联动，不需要在这里再改课程 */
     notify(`已记录一节课 · ${fmtMinutes(cs.lessonMinutes)}`, "success");
   }
 

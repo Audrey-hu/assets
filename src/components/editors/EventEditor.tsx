@@ -3,7 +3,14 @@ import { Dialog } from "@radix-ui/react-dialog";
 import { SheetContent, SheetFooter, SheetHeader, SheetBody } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Chip, Field, Input, Select, Textarea } from "@/components/ui/form";
-import { CurrencyPicker, DecimalInput, MoneyInput, TargetPicker, TimeInput } from "./fields";
+import {
+  CoursePicker,
+  CurrencyPicker,
+  DecimalInput,
+  MoneyInput,
+  TargetPicker,
+  TimeInput,
+} from "./fields";
 import { PhotoGrid, PhotoPickerInput } from "@/components/PhotoGrid";
 import { useApp } from "@/store/app-store";
 import { useEditors, useUI } from "@/store/ui-store";
@@ -37,7 +44,7 @@ export function EventEditor() {
   const lockType = payload.lockType as EventType | undefined;
   const heading = (payload.heading as string | undefined) ?? (initial.id ? "编辑记录" : "新增记录");
 
-  const { settings, saveEvent, deleteEvent, addPhotos, deletePhotos } = useApp();
+  const { data, settings, saveEvent, deleteEvent, addPhotos, deletePhotos } = useApp();
   const { newAsset } = useEditors();
   const [type, setType] = useState<EventType>(lockType ?? initial.type ?? "session");
   const [title, setTitle] = useState(initial.title ?? "");
@@ -61,6 +68,7 @@ export function EventEditor() {
   const [hobbyId, setHobbyId] = useState<string | undefined>(initial.hobbyId);
   const [journeyId, setJourneyId] = useState<string | undefined>(initial.journeyId);
   const [photoIds, setPhotoIds] = useState<string[]>(initial.photoIds ?? []);
+  const [courseId, setCourseId] = useState<string | undefined>(initial.courseId);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   /* reset when the modal is re-opened with different payload */
@@ -84,6 +92,7 @@ export function EventEditor() {
     setHobbyId(initial.hobbyId);
     setJourneyId(initial.journeyId);
     setPhotoIds(initial.photoIds ?? []);
+    setCourseId(initial.courseId);
     setErrors({});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -129,15 +138,17 @@ export function EventEditor() {
       hobbyId,
       journeyId,
       stageId: initial.stageId,
-      courseId: initial.courseId,
+      courseId: isTime ? courseId : initial.courseId,
       assetId: initial.assetId,
       incomeId: initial.incomeId,
       timeCategory: isTime ? timeCategory : initial.timeCategory,
-      person: type === "meeting" ? person.trim() || undefined : initial.person,
       meta:
-        type === "result" && score !== undefined
-          ? { ...(initial.meta ?? {}), score }
-          : initial.meta,
+        isTime && courseId
+          ? { ...(initial.meta ?? {}), lesson: true }
+          : type === "result" && score !== undefined
+            ? { ...(initial.meta ?? {}), score }
+            : initial.meta,
+      person: type === "meeting" ? person.trim() || undefined : initial.person,
       createdAt: initial.createdAt ?? now,
       updatedAt: now,
     };
@@ -344,8 +355,27 @@ export function EventEditor() {
             onChange={(value) => {
               setHobbyId(value.hobbyId);
               setJourneyId(value.journeyId);
+              setCourseId(undefined);
             }}
           />
+
+          {type === "session" && (
+            <CoursePicker
+              courses={data.courses.filter(
+                (course) =>
+                  (hobbyId && course.hobbyId === hobbyId) ||
+                  (journeyId && course.journeyId === journeyId),
+              )}
+              value={courseId}
+              onChange={setCourseId}
+              onPick={(course) => {
+                if (!title.trim()) setTitle(course.name);
+                const minutes = course.lessonMinutes ?? 60;
+                setDurationTouched(true);
+                setDurationRaw(minutes);
+              }}
+            />
+          )}
 
           <Field label="记录">
             <Textarea

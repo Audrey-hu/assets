@@ -4,6 +4,7 @@ import { Minus, Plus } from "lucide-react";
 import { SheetBody, SheetContent, SheetFooter, SheetHeader } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Chip, Field, Input } from "@/components/ui/form";
+import { CoursePicker } from "@/components/editors/fields";
 import { useApp } from "@/store/app-store";
 import { useUI } from "@/store/ui-store";
 import { MOOD, MOOD_ORDER, TIME_CATEGORY } from "@/lib/labels";
@@ -38,6 +39,7 @@ export function QuickTimeSheet() {
   const [mood, setMood] = useState<Mood | undefined>();
   const [hobbyId, setHobbyId] = useState<string | undefined>();
   const [journeyId, setJourneyId] = useState<string | undefined>();
+  const [courseId, setCourseId] = useState<string | undefined>();
   const [lifeCategory, setLifeCategory] = useState<TimeCategory>("health");
   const [error, setError] = useState("");
 
@@ -59,6 +61,7 @@ export function QuickTimeSheet() {
     setMood(undefined);
     setHobbyId(presetHobby);
     setJourneyId(presetJourney);
+    setCourseId(undefined);
     setLifeCategory("health");
     setError("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -76,6 +79,17 @@ export function QuickTimeSheet() {
         ? "social"
         : "growth"
       : lifeCategory;
+
+  /* 选了兴趣或 Journey 之后，列出它下面的课程 */
+  const relatedCourses = useMemo(
+    () =>
+      data.courses.filter(
+        (course) =>
+          (hobbyId && course.hobbyId === hobbyId) ||
+          (journeyId && course.journeyId === journeyId),
+      ),
+    [data.courses, hobbyId, journeyId],
+  );
 
   async function handleSave() {
     if (!minutes || minutes <= 0) {
@@ -97,6 +111,8 @@ export function QuickTimeSheet() {
       photoIds: [],
       hobbyId,
       journeyId,
+      courseId,
+      meta: courseId ? { lesson: true } : undefined,
       timeCategory,
       createdAt: now,
       updatedAt: now,
@@ -194,6 +210,7 @@ export function QuickTimeSheet() {
                   onClick={() => {
                     setHobbyId(hobbyId === hobby.id ? undefined : hobby.id);
                     setJourneyId(undefined);
+                    setCourseId(undefined);
                   }}
                 >
                   <span aria-hidden>{hobby.icon}</span>
@@ -207,6 +224,7 @@ export function QuickTimeSheet() {
                   onClick={() => {
                     setJourneyId(journeyId === journey.id ? undefined : journey.id);
                     setHobbyId(undefined);
+                    setCourseId(undefined);
                   }}
                 >
                   {journey.name}
@@ -214,6 +232,29 @@ export function QuickTimeSheet() {
               ))}
             </div>
           </Field>
+
+          <CoursePicker
+            courses={relatedCourses}
+            value={courseId}
+            onChange={setCourseId}
+            onPick={(course) => {
+              /* 按这门课的写法自动填好，省得每次重打 */
+              if (!title.trim()) setTitle(course.name);
+              setMinutes(course.lessonMinutes ?? 60);
+              setCustom(true);
+            }}
+          />
+
+          {courseId && (
+            <p className="text-[12px] leading-relaxed text-muted-foreground">
+              {(() => {
+                const course = relatedCourses.find((c) => c.id === courseId);
+                if (!course) return null;
+                const remaining = Math.max(0, course.totalLessons - course.completedLessons);
+                return `保存后《${course.name}》的剩余课时 ${remaining} → ${Math.max(0, remaining - 1)} 节。`;
+              })()}
+            </p>
+          )}
 
           {!hobbyId && !journeyId && (
             <Field label="属于哪一类时间">

@@ -186,6 +186,54 @@ export function CurrencyPicker({
 }
 
 /**
+ * 选择「这节课属于哪门课程」。
+ * 选好之后记一条 session，课程剩余课时会自动减一 —— 不用再去编辑课程。
+ */
+export function CoursePicker({
+  courses,
+  value,
+  onChange,
+  onPick,
+}: {
+  courses: import("@/lib/types").Course[];
+  value?: string;
+  onChange: (courseId: string | undefined) => void;
+  /** 选中时回调，用来顺手把标题和时长填成这门课的样子 */
+  onPick?: (course: import("@/lib/types").Course) => void;
+}) {
+  if (!courses.length) return null;
+  return (
+    <Field label="算作哪门课的课时" hint="选中后剩余课时会自动减一">
+      <div className="flex flex-wrap gap-1.5">
+        {courses.map((course) => {
+          const remaining = Math.max(0, course.totalLessons - course.completedLessons);
+          const active = value === course.id;
+          return (
+            <Chip
+              key={course.id}
+              active={active}
+              onClick={() => {
+                if (active) {
+                  onChange(undefined);
+                  return;
+                }
+                onChange(course.id);
+                onPick?.(course);
+              }}
+            >
+              {course.name}
+              <span className={cn("text-[11px]", active ? "opacity-80" : "opacity-60")}>
+                {remaining > 0 ? `剩 ${remaining} 节` : "已上完"}
+              </span>
+            </Chip>
+          );
+        })}
+      </div>
+    </Field>
+  );
+}
+
+/**
  * 数字输入框。
  *
  * 关键点：输入过程中保留用户敲的原始文本，而不是每次都把数字渲染回去。
