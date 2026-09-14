@@ -116,6 +116,8 @@ export function eventsInMonth(events: LifeEvent[], monthKey: string) {
 
 export interface HobbyStats {
   minutes: number;
+  /** 其中来自课程里已完成、但没单独记过时间的课时 */
+  lessonMinutes: number;
   sessions: number;
   invested: MoneyMap;
   costPerHour: MoneyMap;
@@ -144,13 +146,19 @@ export function hobbyStats(hobbyId: ID, dataset: Dataset): HobbyStats {
     months.set(key, bucket);
   }
   const sorted = sessions.map((s) => s.date).sort();
-  const hours = minutes / 60;
+  /* 课程里已完成但没单独记过时间的课时，折算进来 */
+  const lessonMinutes = dataset.courses
+    .filter((course) => course.hobbyId === hobbyId)
+    .reduce((acc, course) => acc + courseStats(course, events).contributedMinutes, 0);
+  const totalMinutes = minutes + lessonMinutes;
+  const hours = totalMinutes / 60;
   const costPerHour: MoneyMap = {};
   if (hours > 0) {
     for (const [code, value] of Object.entries(invested)) costPerHour[code] = value / hours;
   }
   return {
-    minutes,
+    minutes: totalMinutes,
+    lessonMinutes,
     sessions: sessions.length,
     invested,
     costPerHour,
@@ -188,6 +196,8 @@ export function startOfWeekLocal(date: Date, weekStartsOn = 1) {
 
 export interface JourneyStats {
   minutes: number;
+  /** 其中来自课程里已完成、但没单独记过时间的课时 */
+  lessonMinutes: number;
   sessions: number;
   invested: MoneyMap;
   days: number;
@@ -207,10 +217,14 @@ export function journeyStats(journey: Journey, dataset: Dataset): JourneyStats {
   const completed = stages.filter((s) => s.status === "completed").length;
   const days = Math.max(0, differenceInCalendarDays(new Date(), toDate(journey.startDate)));
   const dates = events.map((e) => e.date).sort();
+  const lessonMinutes = dataset.courses
+    .filter((course) => course.journeyId === journey.id)
+    .reduce((acc, course) => acc + courseStats(course, events).contributedMinutes, 0);
   const invested: MoneyMap = {};
   for (const e of events) addMoney(invested, eventExpense(e), e.currency ?? getActiveCurrency());
   return {
-    minutes: sum(sessions.map(eventMinutes)),
+    minutes: sum(sessions.map(eventMinutes)) + lessonMinutes,
+    lessonMinutes,
     sessions: sessions.length,
     invested,
     days,
@@ -732,12 +746,32 @@ export function findHobbyOrJourneyName(e: LifeEvent, dataset: Dataset) {
   return undefined;
 }
 
-export function courseStats(course: Course) {
+/**
+ * 课程统计。
+ *
+ * 「已完成的课时」要能进投入时间，但给每一节补一个假的日期是编数据，
+ * 所以：已经真实记录过的课时按 event 算，剩下没记录的那部分按
+ * 「每课时时长」折算进总时间，并在课程卡上写清楚。
+ */
+export function courseStats(course: Course, events: LifeEvent[] = []) {
   const remaining = Math.max(0, course.totalLessons - course.completedLessons);
+  const lessonMinutes = course.lessonMinutes ?? 60;
+  const recorded = events.filter(
+    (e) => e.courseId === course.id && (e.durationMin ?? 0) > 0,
+  ).length;
+  const unrecorded = Math.max(0, course.completedLessons - recorded);
   return {
     remaining,
     perLesson: course.totalLessons > 0 ? course.totalPrice / course.totalLessons : 0,
     utilisation: course.totalLessons > 0 ? course.completedLessons / course.totalLessons : 0,
+    billing: course.billing ?? "prepaid",
+    lessonMinutes,
+    recorded,
+    unrecorded,
+    /** 没被真实记录、但已经完成的课时折算出来的时间 */
+    contributedMinutes: unrecorded * lessonMinutes,
+    /** 整门课的预计总时长 */
+    plannedMinutes: course.totalLessons * lessonMinutes,
   };
 }
 

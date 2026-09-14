@@ -171,6 +171,13 @@ export interface Course {
   currency?: CurrencyCode;
   totalLessons: number;
   completedLessons: number;
+  /**
+   * prepaid   = 一次性付清：建课程时自动记一笔支出，之后上课只记时间
+   * perlesson = 每上完一节记一次钱
+   */
+  billing?: "prepaid" | "perlesson";
+  /** 每课时时长（分钟），用来把已完成的课时折算成投入时间 */
+  lessonMinutes?: number;
   note?: string;
   createdAt: string;
   updatedAt: string;

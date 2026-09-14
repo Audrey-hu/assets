@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import { Dialog } from "@radix-ui/react-dialog";
 import { SheetBody, SheetContent, SheetFooter, SheetHeader } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Field, Input, Select, Textarea } from "@/components/ui/form";
+import { Chip, Field, Input, Select, Textarea } from "@/components/ui/form";
 import { AccentPicker, DecimalInput, CurrencyPicker, MoneyInput } from "./fields";
 import { JOURNEY_KIND, JOURNEY_STATUS, STAGE_PHASE, STAGE_PHASE_ORDER } from "@/lib/labels";
-import { fmtDate, fmtMoney, toDate, todayISO } from "@/lib/format";
+import { fmtDate, fmtMinutes, fmtMoney, toDate, todayISO } from "@/lib/format";
 import type { CurrencyCode } from "@/lib/format";
 import { uid } from "@/lib/utils";
 import { useApp } from "@/store/app-store";
@@ -373,6 +373,8 @@ export function CourseEditor() {
   const [currency, setCurrency] = useState<CurrencyCode>("CNY");
   const [totalLessons, setTotalLessons] = useState<number | undefined>();
   const [completedLessons, setCompletedLessons] = useState<number | undefined>();
+  const [billing, setBilling] = useState<"prepaid" | "perlesson">("prepaid");
+  const [lessonMinutes, setLessonMinutes] = useState<number | undefined>(60);
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
 
@@ -383,6 +385,8 @@ export function CourseEditor() {
     setCurrency(initial.currency ?? settings.currency);
     setTotalLessons(initial.totalLessons);
     setCompletedLessons(initial.completedLessons ?? 0);
+    setBilling(initial.billing ?? "prepaid");
+    setLessonMinutes(initial.lessonMinutes ?? 60);
     setNote(initial.note ?? "");
     setError("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -407,6 +411,8 @@ export function CourseEditor() {
       currency,
       totalLessons,
       completedLessons: Math.min(completedLessons ?? 0, totalLessons),
+      billing,
+      lessonMinutes: lessonMinutes ?? 60,
       note: note.trim() || undefined,
       createdAt: initial.createdAt ?? now,
       updatedAt: now,
@@ -464,6 +470,40 @@ export function CourseEditor() {
           {totalPrice && totalLessons ? (
             <p className="text-[12.5px] text-muted-foreground">
               每节课成本约 {fmtMoney(totalPrice / totalLessons, { currency })}
+            </p>
+          ) : null}
+
+          <Field label="付费方式">
+            <div className="flex flex-wrap gap-1.5">
+              <Chip active={billing === "prepaid"} onClick={() => setBilling("prepaid")}>
+                一次性付清
+              </Chip>
+              <Chip active={billing === "perlesson"} onClick={() => setBilling("perlesson")}>
+                按次付费
+              </Chip>
+            </div>
+            <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">
+              {billing === "prepaid"
+                ? "保存后会自动记一笔支出，金额是课程总价（已经按次记过的部分会扣掉，不会重复计）。之后每上一节课只记时间。"
+                : "不自动记账，每点一次「Complete Class」记一次钱和一次时间。"}
+            </p>
+          </Field>
+
+          <Field label="每课时时长" hint="分钟，用来把完成的课时折算成投入时间">
+            <DecimalInput
+              placeholder="60"
+              suffix="分钟"
+              allowDecimal={false}
+              value={lessonMinutes}
+              onChange={setLessonMinutes}
+            />
+          </Field>
+
+          {totalLessons ? (
+            <p className="text-[12.5px] text-muted-foreground">
+              整门课预计 {fmtMinutes(totalLessons * (lessonMinutes ?? 60))}；
+              已完成的 {completedLessons ?? 0} 节会按
+              {fmtMinutes((completedLessons ?? 0) * (lessonMinutes ?? 60))} 计入投入时间。
             </p>
           ) : null}
           <Field label="币种">

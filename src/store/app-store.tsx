@@ -191,6 +191,71 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   /**
+   * 预付费课程要在账上留下那笔支出，否则「课程总价」永远进不了投入统计。
+   *
+   * 金额 = 课程总价 − 已经按次记过的课时费，避免同一笔钱被算两遍。
+   * 改成「按次付费」时，把自动生成的那笔支出删掉。
+   */
+  const reconcileCourseExpense = useCallback(
+    async (course: Course, events: LifeEvent[], silent = false) => {
+      const linked = events.filter((e) => e.courseId === course.id);
+      const purchase = linked.find((e) => e.meta?.purchase === true);
+      const billing = course.billing ?? "prepaid";
+
+      if (billing === "perlesson") {
+        if (!purchase) return;
+        await deleteRecord("events", purchase.id);
+        setData((prev) => ({
+          ...prev,
+          events: prev.events.filter((e) => e.id !== purchase.id),
+        }));
+        return;
+      }
+
+      const alreadyPaid = linked
+        .filter((e) => e.meta?.purchase !== true && e.moneyType === "expense")
+        .reduce((acc, e) => acc + (e.amount ?? 0), 0);
+      const amount = Math.max(0, course.totalPrice - alreadyPaid);
+      const now = new Date().toISOString();
+      const event: LifeEvent = {
+        id: purchase?.id ?? uid("evt"),
+        type: "expense",
+        date: purchase?.date ?? course.createdAt.slice(0, 10),
+        title: `购买课程 · ${course.name}`,
+        amount,
+        currency: course.currency,
+        moneyType: "expense",
+        expenseCategory: "course",
+        hobbyId: course.hobbyId,
+        journeyId: course.journeyId,
+        courseId: course.id,
+        timeCategory: course.hobbyId ? "hobby" : "growth",
+        photoIds: purchase?.photoIds ?? [],
+        note:
+          alreadyPaid > 0
+            ? `课程总价里的剩余部分（已按次记过 ${alreadyPaid}）`
+            : `预付 ${course.totalLessons} 节课`,
+        meta: { purchase: true },
+        createdAt: purchase?.createdAt ?? now,
+        updatedAt: now,
+      };
+      await putRecord("events", event);
+      if (!silent) {
+        setData((prev) => {
+          const exists = prev.events.some((e) => e.id === event.id);
+          return {
+            ...prev,
+            events: exists
+              ? prev.events.map((e) => (e.id === event.id ? event : e))
+              : [...prev.events, event],
+          };
+        });
+      }
+    },
+    [],
+  );
+
+  /**
    * 一次性迁移：把还没有币种的旧记录，按当前默认币种钉死。
    *
    * 不做这一步的话，"默认币种"这个设置会反过来改掉老数据的含义 ——
@@ -224,8 +289,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     await Promise.all(jobs);
     await setMeta("currencyStamped", true);
-    return jobs.length > 0;
-  }, []);
+
+    /*
+     * 顺带补一件事：老数据里的课程总价从来没进过投入统计。
+     * 这里给每门预付费课程补上对应的支出（自动扣掉已按次记过的部分）。
+     */
+    for (const course of dataset.courses) {
+      await reconcileCourseExpense(
+        { ...course, currency: course.currency ?? (code as never) },
+        dataset.events,
+        true,
+      );
+    }
+    return true;
+  }, [reconcileCourseExpense]);
 
   useEffect(() => {
     let cancelled = false;
@@ -439,7 +516,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         courses: exists ? prev.courses.map((c) => (c.id === next.id ? next : c)) : [...prev.courses, next],
       };
     });
-  }, []);
+    await reconcileCourseExpense(next, data.events);
+  }, [data.events, reconcileCourseExpense]);
 
   const deleteCourse = useCallback(async (id: ID) => {
     await deleteRecord("courses", id);

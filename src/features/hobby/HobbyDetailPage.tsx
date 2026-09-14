@@ -54,29 +54,33 @@ export function HobbyDetailPage({ hobbyId }: { hobbyId: string }) {
   async function completeClass(courseId: string) {
     const course = courses.find((c) => c.id === courseId);
     if (!course) return;
-    const cs = courseStats(course);
+    const cs = courseStats(course, events);
     if (cs.remaining <= 0) return;
     const now = new Date().toISOString();
+    const prepaid = cs.billing === "prepaid";
     const event: LifeEvent = {
       id: uid("evt"),
       type: "session",
       date: todayISO(),
-      durationMin: 60,
+      durationMin: cs.lessonMinutes,
       title: course.name,
       hobbyId: hobby!.id,
       courseId: course.id,
-      amount: Math.round(cs.perLesson),
-      moneyType: "expense",
-      expenseCategory: "course",
+      /* 预付费的钱在建课程时已经记过了，这里只补时间，避免重复计钱 */
+      amount: prepaid ? undefined : Math.round(cs.perLesson),
+      currency: prepaid ? undefined : course.currency,
+      moneyType: prepaid ? undefined : "expense",
+      expenseCategory: prepaid ? undefined : "course",
       timeCategory: "hobby",
       photoIds: [],
       mood: "good",
+      meta: { lesson: true },
       createdAt: now,
       updatedAt: now,
     };
     await saveEvent(event, { silent: true });
     await saveCourse({ ...course, completedLessons: course.completedLessons + 1 });
-    notify("已记录一节课", "success");
+    notify(`已记录一节课 · ${fmtMinutes(cs.lessonMinutes)}`, "success");
   }
 
   return (
@@ -203,7 +207,10 @@ export function HobbyDetailPage({ hobbyId }: { hobbyId: string }) {
         ) : (
           <div className="space-y-3">
             {courses.map((course) => {
-              const cs = courseStats(course);
+              const cs = courseStats(course, events);
+              const purchase = events.find(
+                (e) => e.courseId === course.id && e.meta?.purchase === true,
+              );
               return (
                 <Card key={course.id} className="p-5">
                   <div className="flex items-start justify-between gap-3">
@@ -212,6 +219,8 @@ export function HobbyDetailPage({ hobbyId }: { hobbyId: string }) {
                       <div className="mt-1 text-[12.5px] text-muted-foreground">
                         总价 {fmtMoney(course.totalPrice, { currency: course.currency })} · 每节{" "}
                         {fmtMoney(cs.perLesson, { currency: course.currency })}
+                        {" · "}
+                        {cs.billing === "prepaid" ? "一次性付清" : "按次付费"}
                       </div>
                     </div>
                     <Badge tone="outline">{Math.round(cs.utilisation * 100)}% 已用</Badge>
@@ -223,6 +232,32 @@ export function HobbyDetailPage({ hobbyId }: { hobbyId: string }) {
                     <SmallStat label="总课时" value={course.totalLessons} />
                     <SmallStat label="已完成" value={course.completedLessons} />
                     <SmallStat label="剩余" value={cs.remaining} />
+                  </div>
+                  <div className="mt-3 space-y-1 text-[12px] leading-relaxed text-muted-foreground">
+                    <div>
+                      每课时 {fmtMinutes(cs.lessonMinutes)}，整门课预计{" "}
+                      {fmtMinutes(cs.plannedMinutes)}
+                    </div>
+                    {cs.contributedMinutes > 0 ? (
+                      <div>
+                        已完成的 {cs.recorded} 节里有 {cs.unrecorded} 节没单独记过时间，
+                        按每节 {fmtMinutes(cs.lessonMinutes)} 折算，已计入投入时间{" "}
+                        <span className="numeral text-foreground/80">
+                          {fmtMinutes(cs.contributedMinutes)}
+                        </span>
+                      </div>
+                    ) : (
+                      <div>已完成的课时都有对应的记录</div>
+                    )}
+                    <div>
+                      {purchase
+                        ? `课程费用已记入支出：${fmtMoney(purchase.amount ?? 0, {
+                            currency: course.currency,
+                          })}`
+                        : cs.billing === "prepaid"
+                          ? "课程费用还没有记账，保存一次课程即可补上"
+                          : "按次付费，每上一节记一次"}
+                    </div>
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2">
                     <Button
