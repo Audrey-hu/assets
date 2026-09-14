@@ -115,7 +115,7 @@ function TimelineRow({
               )}
             >
               {isExpense ? "−" : isIncome ? "+" : ""}
-              {fmtMoney(amount)}
+              {fmtMoney(amount, { currency: event.currency })}
             </span>
           )}
         </div>

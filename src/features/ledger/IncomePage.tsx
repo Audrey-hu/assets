@@ -111,25 +111,34 @@ export function IncomePage() {
                     </div>
                     <div className="text-right">
                       <div className="numeral text-[20px] font-medium leading-none text-primary">
-                        {fmtMoney(project.revenue)}
+                        {fmtMoney(project.revenue, { currency: project.currency })}
                       </div>
                       <div className="mt-1 text-[11.5px] text-muted-foreground">revenue</div>
                     </div>
                   </div>
 
                   <div className="mt-4 grid grid-cols-3 gap-3">
-                    <Mini label="成本" value={fmtMoney(project.cost)} />
+                    <Mini label="成本" value={fmtMoney(project.cost, { currency: project.currency })} />
                     <Mini label="投入" value={fmtHours(project.minutes)} />
                     <Mini
                       label="时薪"
-                      value={project.minutes > 0 ? `${fmtMoney(stats.hourly, { decimals: 0 })}/h` : "—"}
+                      value={
+                        project.minutes > 0
+                          ? `${fmtMoney(stats.hourly, {
+                              decimals: 0,
+                              currency: project.currency,
+                            })}/h`
+                          : "—"
+                      }
                     />
                   </div>
 
                   <div className="mt-3.5 flex items-center justify-between border-t border-border/70 pt-3">
                     <span className="text-[12px] text-muted-foreground">
                       Net{" "}
-                      <span className="numeral text-foreground">{fmtMoney(stats.net)}</span>
+                      <span className="numeral text-foreground">
+                        {fmtMoney(stats.net, { currency: project.currency })}
+                      </span>
                     </span>
                     {asset && (
                       <span

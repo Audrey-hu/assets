@@ -210,7 +210,8 @@ export function HobbyDetailPage({ hobbyId }: { hobbyId: string }) {
                     <div className="min-w-0">
                       <div className="truncate text-[15px] font-medium text-foreground">{course.name}</div>
                       <div className="mt-1 text-[12.5px] text-muted-foreground">
-                        总价 {fmtMoney(course.totalPrice)} · 每节 {fmtMoney(cs.perLesson)}
+                        总价 {fmtMoney(course.totalPrice, { currency: course.currency })} · 每节{" "}
+                        {fmtMoney(cs.perLesson, { currency: course.currency })}
                       </div>
                     </div>
                     <Badge tone="outline">{Math.round(cs.utilisation * 100)}% 已用</Badge>

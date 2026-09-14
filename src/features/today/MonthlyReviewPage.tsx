@@ -101,7 +101,13 @@ export function MonthlyReviewPage({ month }: { month: string }) {
         <Card className="divide-y divide-border/70 px-5">
           <Row
             label="Top Investment"
-            value={summary.topExpense ? `${summary.topExpense.title} · ${fmtMoney(summary.topExpense.amount)}` : "—"}
+            value={
+              summary.topExpense
+                ? `${summary.topExpense.title} · ${fmtMoney(summary.topExpense.amount, {
+                    currency: summary.topExpense.currency,
+                  })}`
+                : "—"
+            }
           />
           <Row
             label="Most Time"

@@ -186,7 +186,7 @@ export function TodayPage() {
                     ) : null}
                     {event.amount ? (
                       <div className="numeral mt-0.5 text-[12px] text-muted-foreground">
-                        {fmtMoney(event.amount)}
+                        {fmtMoney(event.amount, { currency: event.currency })}
                       </div>
                     ) : null}
                   </div>

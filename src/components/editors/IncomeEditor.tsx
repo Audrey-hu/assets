@@ -129,13 +129,13 @@ export function IncomeEditor() {
             <div>
               <div className="label-caps">净收入</div>
               <div className="mt-1 numeral text-[20px] font-medium text-foreground">
-                {fmtMoney(net)}
+                {fmtMoney(net, { currency })}
               </div>
             </div>
             <div className="text-right">
               <div className="label-caps">时薪</div>
               <div className="mt-1 numeral text-[20px] font-medium text-primary">
-                {minutes > 0 ? `${fmtMoney(hourly)}/h` : "—"}
+                {minutes > 0 ? `${fmtMoney(hourly, { currency })}/h` : "—"}
               </div>
             </div>
           </div>

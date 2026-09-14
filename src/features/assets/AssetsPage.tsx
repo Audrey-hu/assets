@@ -8,6 +8,8 @@ import { PhotoGrid } from "@/components/PhotoGrid";
 import { useApp } from "@/store/app-store";
 import { useEditors, useUI } from "@/store/ui-store";
 import { fmtDate, fmtHours, fmtMoney, monthKey } from "@/lib/format";
+import { addMoney, getActiveCurrency, type MoneyMap } from "@/lib/format";
+import { Money } from "@/components/ui/money";
 import { ASSET_TYPE, ASSET_TYPE_ORDER } from "@/lib/labels";
 import { navigate } from "@/lib/router";
 import type { Asset, AssetType } from "@/lib/types";
@@ -29,13 +31,23 @@ export function AssetsPage() {
   );
 
   const totals = useMemo(
-    () => ({
-      count: data.assets.length,
-      minutes: data.assets.reduce((acc, a) => acc + a.minutes, 0),
-      cost: data.assets.reduce((acc, a) => acc + a.cost, 0),
-      income: data.assets.reduce((acc, a) => acc + a.incomeGenerated, 0),
-      thisMonth: data.assets.filter((a) => a.createdDate.startsWith(monthKey(new Date()))).length,
-    }),
+    () => {
+      /* 金额按币种分开累加，不换算 */
+      const cost: MoneyMap = {};
+      const income: MoneyMap = {};
+      for (const asset of data.assets) {
+        const code = asset.currency ?? getActiveCurrency();
+        addMoney(cost, asset.cost, code);
+        addMoney(income, asset.incomeGenerated, code);
+      }
+      return {
+        count: data.assets.length,
+        minutes: data.assets.reduce((acc, a) => acc + a.minutes, 0),
+        cost,
+        income,
+        thisMonth: data.assets.filter((a) => a.createdDate.startsWith(monthKey(new Date()))).length,
+      };
+    },
     [data.assets],
   );
 
@@ -82,8 +94,8 @@ export function AssetsPage() {
           <Card className="grid grid-cols-2 divide-border/70 sm:grid-cols-4 sm:divide-x">
             <Cell label="资产数量" value={String(totals.count)} />
             <Cell label="投入时间" value={fmtHours(totals.minutes)} />
-            <Cell label="投入成本" value={fmtMoney(totals.cost, { compact: true })} />
-            <Cell label="带来收入" value={fmtMoney(totals.income, { compact: true })} tone />
+            <Cell label="投入成本" value={<Money map={totals.cost} compact />} />
+            <Cell label="带来收入" value={<Money map={totals.income} compact />} tone />
           </Card>
 
           {tab === "all" ? (
@@ -154,10 +166,13 @@ export function AssetCard({ asset }: { asset: Asset }) {
       </div>
       <div className="mt-4 grid grid-cols-3 gap-3">
         <Mini label="投入" value={fmtHours(asset.minutes)} />
-        <Mini label="成本" value={fmtMoney(asset.cost, { compact: true })} />
+        <Mini
+          label="成本"
+          value={fmtMoney(asset.cost, { compact: true, currency: asset.currency })}
+        />
         <Mini
           label="带来收入"
-          value={fmtMoney(asset.incomeGenerated, { compact: true })}
+          value={fmtMoney(asset.incomeGenerated, { compact: true, currency: asset.currency })}
           tone={asset.incomeGenerated > 0}
         />
       </div>
@@ -180,14 +195,18 @@ function AssetChain({ asset }: { asset: Asset }) {
   if (asset.minutes > 0 || asset.cost > 0) {
     steps.push({
       label: "投入",
-      value: `${fmtHours(asset.minutes)}${asset.cost > 0 ? ` · ${fmtMoney(asset.cost)}` : ""}`,
+      value: `${fmtHours(asset.minutes)}${
+        asset.cost > 0 ? ` · ${fmtMoney(asset.cost, { currency: asset.currency })}` : ""
+      }`,
     });
   }
   steps.push({ label: "沉淀", value: `${ASSET_TYPE[asset.type]} · ${asset.name}` });
   if (asset.incomeGenerated > 0 || income) {
     steps.push({
       label: "带来收入",
-      value: fmtMoney(income?.revenue ?? asset.incomeGenerated),
+      value: fmtMoney(income?.revenue ?? asset.incomeGenerated, {
+        currency: income?.currency ?? asset.currency,
+      }),
     });
   }
 
@@ -213,7 +232,15 @@ function AssetChain({ asset }: { asset: Asset }) {
   );
 }
 
-function Cell({ label, value, tone }: { label: string; value: string; tone?: boolean }) {
+function Cell({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: React.ReactNode;
+  tone?: boolean;
+}) {
   return (
     <div className="border-b border-border/70 p-4 last:border-b-0 sm:border-b-0">
       <div className="label-caps">{label}</div>
@@ -296,8 +323,12 @@ export function AssetDetailPage({ assetId }: { assetId: string }) {
 
       <div className="grid grid-cols-2 gap-3 pt-4 sm:grid-cols-3 lg:pt-0">
         <Tile label="Time invested" value={fmtHours(asset.minutes)} />
-        <Tile label="Cost" value={fmtMoney(asset.cost)} />
-        <Tile label="Income generated" value={fmtMoney(asset.incomeGenerated)} tone />
+        <Tile label="Cost" value={fmtMoney(asset.cost, { currency: asset.currency })} />
+        <Tile
+          label="Income generated"
+          value={fmtMoney(asset.incomeGenerated, { currency: asset.currency })}
+          tone
+        />
       </div>
 
       {(hobby || journey || source) && (
@@ -337,7 +368,7 @@ export function AssetDetailPage({ assetId }: { assetId: string }) {
               <Row
                 key={project.id}
                 label={`${project.name} · ${fmtDate(project.date)}`}
-                value={fmtMoney(project.revenue)}
+                value={fmtMoney(project.revenue, { currency: project.currency })}
               />
             ))}
           </Card>

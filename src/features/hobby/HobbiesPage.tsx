@@ -7,8 +7,8 @@ import { PhotoThumb } from "@/components/PhotoGrid";
 import { Money } from "@/components/ui/money";
 import { useApp } from "@/store/app-store";
 import { useEditors, useUI } from "@/store/ui-store";
-import { hobbyStats, hobbySessionsThisWeek } from "@/lib/stats";
-import { fmtHours, fmtMoney, fmtRelativeDays } from "@/lib/format";
+import { hobbyStats, hobbySessionsThisWeek, journeyStats } from "@/lib/stats";
+import { fmtHours, fmtRelativeDays } from "@/lib/format";
 import { HOBBY_STATUS, JOURNEY_KIND, JOURNEY_STATUS } from "@/lib/labels";
 import { navigate } from "@/lib/router";
 import type { Hobby, Journey } from "@/lib/types";
@@ -179,6 +179,7 @@ export function JourneyList({ onCreate }: { onCreate: () => void }) {
 
 function JourneyCard({ journey }: { journey: Journey }) {
   const { data } = useApp();
+  const stats = useMemo(() => journeyStats(journey, data), [journey, data]);
   const stages = useMemo(
     () => data.stages.filter((s) => s.journeyId === journey.id).sort((a, b) => a.order - b.order),
     [data.stages, journey.id],
@@ -186,20 +187,8 @@ function JourneyCard({ journey }: { journey: Journey }) {
   const completed = stages.filter((s) => s.status === "completed").length;
   const next = stages.find((s) => s.status !== "completed");
 
-  const minutes = useMemo(
-    () =>
-      data.events
-        .filter((e) => e.journeyId === journey.id && e.type === "session")
-        .reduce((acc, e) => acc + (e.durationMin ?? 0), 0),
-    [data.events, journey.id],
-  );
-  const invested = useMemo(
-    () =>
-      data.events
-        .filter((e) => e.journeyId === journey.id && e.moneyType === "expense")
-        .reduce((acc, e) => acc + (e.amount ?? 0), 0),
-    [data.events, journey.id],
-  );
+  const minutes = stats.minutes;
+  const invested = stats.invested;
 
   return (
     <button
@@ -231,9 +220,11 @@ function JourneyCard({ journey }: { journey: Journey }) {
           <div className="mt-1 text-[11.5px] text-muted-foreground">时间投入</div>
         </div>
         <div>
-          <div className="numeral text-[19px] font-medium leading-none text-foreground">
-            {fmtMoney(invested, { compact: true })}
-          </div>
+          <Money
+            map={invested}
+            compact
+            className="text-[19px] font-medium leading-none text-foreground"
+          />
           <div className="mt-1 text-[11.5px] text-muted-foreground">资金投入</div>
         </div>
         <div>
