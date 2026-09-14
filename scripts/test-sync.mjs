@@ -133,8 +133,8 @@ console.log("\n同步合并规则\n");
 {
   const p = plan([localRec("events", "e1", T(6))], [remoteRow("events", "e1", T(4), true)]);
   check(
-    "删除之后又被修改 → 记录复活",
-    p.push.length === 1 && p.push[0]?.deleted === false && p.deleteLocal.length === 0,
+    "云端已删 + 本地改过 → 仍然删除（删除优先）",
+    p.deleteLocal.length === 1 && p.push.length === 0,
     JSON.stringify(p),
   );
 }
@@ -157,17 +157,21 @@ console.log("\n同步合并规则\n");
 {
   const p = plan([], [remoteRow("events", "e1", T(2))], { [keyOf("events", "e1")]: T(2) });
   check(
-    "墓碑与云端同样新 → 仍然以删除为准",
-    p.pull.length === 0 && p.push.length === 0,
+    "墓碑与云端同样新 → 仍然以删除为准，并把云端标记成删除",
+    p.pull.length === 0 && p.push.length === 1 && p.push[0].deleted === true,
     JSON.stringify(p),
   );
 }
 
 {
+  /*
+   * 这条覆盖真正把用户坑到的场景：云端那份的 updated_at 看起来比墓碑还新
+   * （示例数据的时间戳曾经落在未来），旧逻辑会因此把删除翻案。
+   */
   const p = plan([], [remoteRow("events", "e1", T(7))], { [keyOf("events", "e1")]: T(5) });
   check(
-    "删除之后云端改过 → 以云端为准",
-    p.pull.length === 1 && p.push.length === 0,
+    "云端那份时间戳更新 → 删除依然优先，不拉回来",
+    p.pull.length === 0 && p.push.length === 1 && p.push[0].deleted === true,
     JSON.stringify(p),
   );
 }
@@ -177,6 +181,39 @@ console.log("\n同步合并规则\n");
     [keyOf("events", "e1")]: T(5),
   });
   check("墓碑云端已存在 → 不重复上传", p.push.length === 0, JSON.stringify(p));
+}
+
+{
+  /* 用户当前的状态：上一轮同步把删掉的记录又拉了回来，本地既有记录又有墓碑 */
+  const p = plan([localRec("events", "e1", T(3))], [remoteRow("events", "e1", T(9))], {
+    [keyOf("events", "e1")]: T(5),
+  });
+  check(
+    "本地既有记录又有墓碑 → 本地也删掉，并推墓碑",
+    p.deleteLocal.length === 1 && p.pull.length === 0 && p.push.length === 1,
+    JSON.stringify(p),
+  );
+}
+
+{
+  /* 时区 / 格式不一致时，必须按真实时刻比较，不能按字符串 */
+  const p = plan(
+    [localRec("events", "e1", "2026-09-14T20:00:00.000Z")],
+    [
+      {
+        store: "events",
+        id: "e1",
+        data: { id: "e1" },
+        updated_at: "2026-09-14T12:00:00+00:00",
+        deleted: false,
+      },
+    ],
+  );
+  check(
+    "带 +00:00 的云端时间戳按真实时刻比较（本地 20:00Z 更新 → 上传）",
+    p.push.length === 1 && p.pull.length === 0,
+    JSON.stringify(p),
+  );
 }
 
 {
@@ -198,7 +235,7 @@ console.log("\n同步合并规则\n");
 }
 
 {
-  const p = plan([localRec("events", "e1", T(2))], [], { [keyOf("events", "e1")]: T(9) });
+  const p = plan([], [], { [keyOf("events", "e1")]: T(9) });
   check(
     "本地已删、云端从未有过 → 不推墓碑（没有东西可删）",
     p.push.length === 0 && p.pull.length === 0 && p.deleteLocal.length === 0,

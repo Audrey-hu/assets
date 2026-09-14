@@ -419,13 +419,14 @@ export async function clearStores(stores: StoreName[]) {
    * 清空本地数据前先记墓碑：云端还留着这些记录，
    * 不写墓碑的话下次同步会把它们原样拉回来。
    */
-  const stamps = await getTombstones();
   const now = new Date().toISOString();
+  const keys: string[] = [];
   for (const store of stores) {
     if (store === "photos") continue; // 照片按引用同步，不参与记录级墓碑
-    for (const id of await listIds(store)) stamps[`${store}:${id}`] = now;
+    for (const id of await listIds(store)) keys.push(`${store}:${id}`);
   }
-  await setTombstones(stamps);
+  /* 走 addTombstones：它是串行的，不会和别处的删除互相覆盖 */
+  await addTombstones(keys, now);
 
   if (mode === "indexedDB") {
     const db = await openDatabase();
@@ -472,32 +473,58 @@ export async function setMeta(key: string, value: unknown) {
 /**
  * 删除掉的记录要留下"墓碑"，否则另一台设备同步时会把旧数据推回来。
  * 形如 { "events:evt_abc": "2026-09-11T03:00:00.000Z" }
+ *
+ * 墓碑是「读出来 → 改 → 写回去」，并发调用会互相覆盖：
+ * 删除一条带照片的记录时，记录和照片是 Promise.all 一起删的，
+ * 两个写入竞争，后写的那个会把前一个的墓碑抹掉 —— 删除动作直接丢失。
+ * 所以这里用一条串行队列把写操作排队。
  */
-export async function getTombstones(): Promise<Record<string, string>> {
+let tombstoneQueue: Promise<unknown> = Promise.resolve();
+
+function serialize<T>(task: () => Promise<T>): Promise<T> {
+  const next = tombstoneQueue.then(task, task);
+  tombstoneQueue = next.then(
+    () => undefined,
+    () => undefined,
+  );
+  return next;
+}
+
+async function readTombstones(): Promise<Record<string, string>> {
   return (await getMeta<Record<string, string>>("tombstones")) ?? {};
 }
 
+export async function getTombstones(): Promise<Record<string, string>> {
+  return readTombstones();
+}
+
 export async function setTombstones(map: Record<string, string>) {
-  await setMeta("tombstones", map);
+  await serialize(() => setMeta("tombstones", map));
 }
 
 export async function addTombstones(keys: string[], at = new Date().toISOString()) {
   if (!keys.length) return;
-  const map = await getTombstones();
-  for (const key of keys) map[key] = at;
-  await setTombstones(map);
+  await serialize(async () => {
+    const map = await readTombstones();
+    for (const key of keys) map[key] = at;
+    await setMeta("tombstones", map);
+  });
 }
 
 /** 墓碑不需要永远留着，超过这个时间的可以清掉。 */
 export async function pruneTombstones(days = 90) {
-  const map = await getTombstones();
-  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
-  const next: Record<string, string> = {};
-  for (const [key, at] of Object.entries(map)) {
-    if (new Date(at).getTime() >= cutoff) next[key] = at;
-  }
-  if (Object.keys(next).length !== Object.keys(map).length) await setTombstones(next);
-  return next;
+  return serialize(async () => {
+    const map = await readTombstones();
+    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+    const next: Record<string, string> = {};
+    for (const [key, at] of Object.entries(map)) {
+      if (new Date(at).getTime() >= cutoff) next[key] = at;
+    }
+    if (Object.keys(next).length !== Object.keys(map).length) {
+      await setMeta("tombstones", next);
+    }
+    return next;
+  });
 }
 
 /* -------------------------------- photos ------------------------------ */

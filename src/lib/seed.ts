@@ -16,7 +16,22 @@ import type {
 import { defaultSettings, saveSettings } from "./settings";
 import type { Dataset } from "./stats";
 
-const ISO = (d: Date, time = "12:00:00") => `${format(d, "yyyy-MM-dd")}T${time}`;
+/**
+ * 生成带时区的 ISO 时刻，并且**不允许落在未来**。
+ *
+ * 之前这里写的是 "2026-09-14T12:00:00" 这种不带时区的字符串：
+ * 存进 Supabase（数据库时区 UTC）就变成 12:00 UTC，也就是上海时间晚上 8 点。
+ * 结果是"今天"的示例记录看起来总是在未来，用户删掉之后，
+ * 同步会认为云端那份更新，把记录又拉回来 —— 晚上 8 点前怎么删都删不掉。
+ */
+const ISO = (d: Date, hhmm = "12:00") => {
+  const [hour, minute] = hhmm.split(":").map(Number);
+  const at = new Date(d);
+  at.setHours(hour, minute || 0, 0, 0);
+  /* 留一分钟余量，避免和"刚刚"打平 */
+  const capped = Math.min(at.getTime(), Date.now() - 60_000);
+  return new Date(capped).toISOString();
+};
 const DAY = (d: Date) => format(d, "yyyy-MM-dd");
 const HHMM = (d: Date) => format(d, "HH:mm");
 

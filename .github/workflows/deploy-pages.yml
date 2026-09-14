@@ -36,6 +36,9 @@ jobs:
       - name: 同步规则测试
         run: pnpm test:sync
 
+      - name: 存储层并发测试
+        run: pnpm test:db
+
       - name: Build single file
         run: pnpm build:single
 
