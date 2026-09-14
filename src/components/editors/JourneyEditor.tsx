@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/form";
 import { AccentPicker, DecimalInput } from "./fields";
 import { JOURNEY_KIND, JOURNEY_STATUS, STAGE_PHASE, STAGE_PHASE_ORDER } from "@/lib/labels";
-import { fmtDate, toDate, todayISO } from "@/lib/format";
+import { fmtDate, fmtMoney, toDate, todayISO } from "@/lib/format";
 import { uid } from "@/lib/utils";
 import { useApp } from "@/store/app-store";
 import { useUI } from "@/store/ui-store";
@@ -463,7 +463,7 @@ export function CourseEditor() {
           </div>
           {totalPrice && totalLessons ? (
             <p className="text-[12.5px] text-muted-foreground">
-              每节课成本约 ¥{(totalPrice / totalLessons).toFixed(0)}
+              每节课成本约 {fmtMoney(totalPrice / totalLessons)}
             </p>
           ) : null}
           <Field label="备注">

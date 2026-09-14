@@ -4,7 +4,7 @@ import { SheetBody, SheetContent, SheetFooter, SheetHeader } from "@/components/
 import { Button } from "@/components/ui/button";
 import { Chip, Field, Input, Textarea } from "@/components/ui/form";
 import { MoneyInput } from "./fields";
-import { todayISO } from "@/lib/format";
+import { fmtMoney, todayISO } from "@/lib/format";
 import { investmentCategories, investmentStats } from "@/lib/stats";
 import { useApp } from "@/store/app-store";
 import { useUI } from "@/store/ui-store";
@@ -123,7 +123,8 @@ export function InvestmentEditor() {
                       : "numeral text-[16px] font-medium text-[#A9765A]"
                   }
                 >
-                  {value - cost >= 0 ? "+" : "−"}¥{Math.abs(value - cost).toLocaleString("en-US")}
+                  {value - cost >= 0 ? "+" : "−"}
+                  {fmtMoney(Math.abs(value - cost))}
                 </span>
                 <span className="numeral text-[12.5px] text-muted-foreground">
                   {((value - cost) / cost * 100).toFixed(1)}%
@@ -150,8 +151,7 @@ export function InvestmentEditor() {
 
           {data.investments.length > 0 && (
             <p className="text-[12.5px] leading-relaxed text-muted-foreground">
-              当前合计投入 ¥{totals.cost.toLocaleString("en-US")}，市值 ¥
-              {totals.value.toLocaleString("en-US")}
+              当前合计投入 {fmtMoney(totals.cost)}，市值 {fmtMoney(totals.value)}
               {totals.missing > 0 ? `（其中 ${totals.missing} 笔还没更新市值，按本金计）` : ""}
             </p>
           )}

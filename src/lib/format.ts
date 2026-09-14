@@ -50,21 +50,41 @@ export function fmtTimeRange(start?: string, end?: string): string {
   return "";
 }
 
-export function currencySymbol(currency = "CNY") {
-  switch (currency) {
-    case "CNY":
-      return "¥";
-    case "USD":
-      return "$";
-    case "EUR":
-      return "€";
-    case "GBP":
-      return "£";
-    case "JPY":
-      return "¥";
-    default:
-      return "¥";
-  }
+/**
+ * 全应用统一使用一种记账币种（在 Me → Preferences 里改）。
+ *
+ * 之所以做成模块级的「当前币种」而不是层层传参：涉及金额的地方太多了，
+ * 少传一个就会出现「设置成美元、这里还显示 ¥」的不一致。
+ * 组件都活在 AppProvider 之下，设置一改就整体重渲染，取到的就是新值。
+ */
+export const CURRENCIES = [
+  { code: "CNY", symbol: "¥", label: "人民币 CNY" },
+  { code: "USD", symbol: "$", label: "美元 USD" },
+  { code: "EUR", symbol: "€", label: "欧元 EUR" },
+  { code: "GBP", symbol: "£", label: "英镑 GBP" },
+  { code: "JPY", symbol: "JP¥", label: "日元 JPY" },
+  { code: "HKD", symbol: "HK$", label: "港币 HKD" },
+] as const;
+
+export type CurrencyCode = (typeof CURRENCIES)[number]["code"];
+
+let activeCurrency: CurrencyCode = "CNY";
+
+export function setActiveCurrency(code: CurrencyCode) {
+  activeCurrency = code;
+}
+
+export function getActiveCurrency(): CurrencyCode {
+  return activeCurrency;
+}
+
+export function currencySymbol(currency: string = activeCurrency) {
+  return CURRENCIES.find((item) => item.code === currency)?.symbol ?? "¥";
+}
+
+/** 只有人民币和日元习惯用「万」，其它用 k */
+function usesWan(currency: string) {
+  return currency === "CNY" || currency === "JPY";
 }
 
 export interface MoneyOptions {
@@ -75,13 +95,22 @@ export interface MoneyOptions {
 }
 
 export function fmtMoney(amount: number, options: MoneyOptions = {}): string {
-  const { currency = "CNY", decimals = 0, compact = false, signed = false } = options;
+  const { currency = activeCurrency, decimals = 0, compact = false, signed = false } = options;
   const abs = Math.abs(amount);
   let body: string;
   if (compact && abs >= 10000) {
-    const v = amount / 10000;
-    body = `${trimZero(v.toFixed(abs >= 100000 ? 0 : 1))}万`;
+    if (usesWan(currency)) {
+      const v = amount / 10000;
+      body = `${trimZero(v.toFixed(abs >= 100000 ? 0 : 1))}万`;
+    } else {
+      const v = amount / 1000;
+      body = `${trimZero(v.toFixed(abs >= 100000 ? 0 : 1))}k`;
+    }
     return `${signed && amount > 0 ? "+" : amount < 0 ? "-" : ""}${currencySymbol(currency)}${body}`;
+  }
+  if (compact && abs >= 1000 && !usesWan(currency)) {
+    const v = amount / 1000;
+    return `${signed && amount > 0 ? "+" : amount < 0 ? "-" : ""}${currencySymbol(currency)}${trimZero(v.toFixed(1))}k`;
   }
   body = trimZero(
     abs.toLocaleString("en-US", {

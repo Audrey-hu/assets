@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Chip, Field, Input, Select, Textarea } from "@/components/ui/form";
 import { DecimalInput, MoneyInput } from "./fields";
 import { INCOME_TYPE } from "@/lib/labels";
-import { todayISO } from "@/lib/format";
+import { fmtMoney, todayISO } from "@/lib/format";
 import { uid } from "@/lib/utils";
 import { useApp } from "@/store/app-store";
 import { useUI } from "@/store/ui-store";
@@ -120,12 +120,14 @@ export function IncomeEditor() {
           <div className="surface flex items-center justify-between gap-4 px-3.5 py-3">
             <div>
               <div className="label-caps">净收入</div>
-              <div className="mt-1 numeral text-[20px] font-medium text-foreground">¥{net.toLocaleString("en-US")}</div>
+              <div className="mt-1 numeral text-[20px] font-medium text-foreground">
+                {fmtMoney(net)}
+              </div>
             </div>
             <div className="text-right">
               <div className="label-caps">时薪</div>
               <div className="mt-1 numeral text-[20px] font-medium text-primary">
-                {minutes > 0 ? `¥${hourly.toFixed(0)}/h` : "—"}
+                {minutes > 0 ? `${fmtMoney(hourly)}/h` : "—"}
               </div>
             </div>
           </div>

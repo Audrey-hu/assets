@@ -1,3 +1,5 @@
+import type { CurrencyCode } from "./format";
+
 export type ID = string;
 
 export type AccentKey = "sage" | "clay" | "steel" | "sand" | "mauve";
@@ -313,7 +315,7 @@ export interface Photo {
 
 export interface Settings {
   displayName: string;
-  currency: "CNY" | "USD" | "EUR" | "GBP" | "JPY";
+  currency: CurrencyCode;
   dateFormat: "YYYY.MM.DD" | "YYYY-MM-DD" | "MM/DD/YYYY";
   theme: "light" | "dark";
   weekStartsOn: 0 | 1;

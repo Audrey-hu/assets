@@ -4,7 +4,7 @@ import { SheetBody, SheetContent, SheetFooter, SheetHeader } from "@/components/
 import { Button } from "@/components/ui/button";
 import { Chip, Field, Input, Select } from "@/components/ui/form";
 import { DecimalInput, EmojiPicker, MoneyInput } from "./fields";
-import { fmtDate, todayISO } from "@/lib/format";
+import { fmtDate, fmtMoney, todayISO } from "@/lib/format";
 import { uid } from "@/lib/utils";
 import { useApp } from "@/store/app-store";
 import { useUI } from "@/store/ui-store";
@@ -343,13 +343,14 @@ export function SavingsTxEditor() {
           </Field>
           {item && (
             <p className="text-[12.5px] text-muted-foreground">
-              当前 ¥{(item.current ?? 0).toLocaleString("en-US")} →{" "}
+              当前 {fmtMoney(item.current ?? 0)} →{" "}
               <span className="numeral text-foreground">
-                ¥
-                {Math.max(
-                  0,
-                  (item.current ?? 0) + (direction === "in" ? (amount ?? 0) : -(amount ?? 0)),
-                ).toLocaleString("en-US")}
+                {fmtMoney(
+                  Math.max(
+                    0,
+                    (item.current ?? 0) + (direction === "in" ? (amount ?? 0) : -(amount ?? 0)),
+                  ),
+                )}
               </span>
             </p>
           )}

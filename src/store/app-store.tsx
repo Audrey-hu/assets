@@ -24,6 +24,7 @@ import {
 } from "@/lib/db";
 import { compressImage } from "@/lib/media";
 import { applyTheme, defaultSettings, loadSettings, saveSettings } from "@/lib/settings";
+import { setActiveCurrency } from "@/lib/format";
 import { buildDemoData, storeDemoPhotos } from "@/lib/seed";
 import { getSession } from "@/lib/cloud";
 import type { Dataset } from "@/lib/stats";
@@ -120,6 +121,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
   const [toasts, setToasts] = useState<Toast[]>([]);
   const timers = useRef<Map<string, number>>(new Map());
+
+  /*
+   * 在渲染之前把币种同步给格式化函数。
+   * 这是一次幂等的赋值，放在这里保证同一次渲染里所有金额都用同一个币种，
+   * 不会出现"设置改了、部分数字还是旧符号"的中间状态。
+   */
+  setActiveCurrency(settings.currency);
 
   /**
    * 所有"用户改动"都走这里，顺带打上标记。

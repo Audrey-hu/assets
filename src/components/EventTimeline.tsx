@@ -115,7 +115,7 @@ function TimelineRow({
               )}
             >
               {isExpense ? "−" : isIncome ? "+" : ""}
-              {fmtMoney(amount, { currency: "CNY" })}
+              {fmtMoney(amount)}
             </span>
           )}
         </div>

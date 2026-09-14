@@ -54,6 +54,9 @@ LifeEvent {
 | **Assets** | 沉淀资产，以及 From Investment to Asset 关系链 |
 | **其他** | Focus Timer、**补记时长**（不打计时器，直接填"我练了多久"）、Session 小结、照片、Calendar、Monthly Review、Life Moments、全局搜索、JSON 导入导出、PWA |
 
+金额支持人民币 / 美元 / 欧元 / 英镑 / 日元 / 港币，在 **Me → Preferences**
+或 Ledger 页右上角切换，全应用（含金额输入框的前缀）一起生效。
+
 ## 云同步（可选）
 
 默认完全离线，数据只在这台设备上。想要手机和电脑看到同一份数据，可以接自己的 Supabase：

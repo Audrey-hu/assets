@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useApp } from "@/store/app-store";
 import { Chip, Field, Input } from "@/components/ui/form";
+import { currencySymbol } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { AccentKey } from "@/lib/types";
 import { ACCENT_CLASS } from "@/components/ui/display";
@@ -131,7 +132,12 @@ export function MoneyInput({
   placeholder?: string;
 }) {
   return (
-    <DecimalInput value={value} onChange={onChange} placeholder={placeholder} prefix="¥" />
+    <DecimalInput
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      prefix={currencySymbol()}
+    />
   );
 }
 

@@ -9,6 +9,7 @@ import { useUI } from "@/store/ui-store";
 import { buildBackup, importBackup } from "@/lib/backup";
 import { estimateUsage } from "@/lib/db";
 import { fmtDate } from "@/lib/format";
+import { CURRENCIES } from "@/lib/format";
 import { download } from "@/lib/utils";
 import type { Settings } from "@/lib/types";
 import { navigate } from "@/lib/router";
@@ -78,11 +79,11 @@ export function MePage() {
                   updateSettings({ currency: event.target.value as Settings["currency"] })
                 }
               >
-                <option value="CNY">CNY · ¥</option>
-                <option value="USD">USD · $</option>
-                <option value="EUR">EUR · €</option>
-                <option value="GBP">GBP · £</option>
-                <option value="JPY">JPY · ¥</option>
+                {CURRENCIES.map((item) => (
+                  <option key={item.code} value={item.code}>
+                    {item.label}
+                  </option>
+                ))}
               </Select>
             </Field>
             <Field label="日期格式">

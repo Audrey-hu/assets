@@ -185,7 +185,7 @@ export function TodayPage() {
                     ) : null}
                     {event.amount ? (
                       <div className="numeral mt-0.5 text-[12px] text-muted-foreground">
-                        ¥{event.amount.toLocaleString("en-US")}
+                        {fmtMoney(event.amount)}
                       </div>
                     ) : null}
                   </div>
