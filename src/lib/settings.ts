@@ -10,7 +10,15 @@ export const defaultSettings: Settings = {
   theme: "light",
   weekStartsOn: 1,
   demoSeeded: false,
-  seedDemo: true,
+  /*
+   * 默认不灌示例数据。
+   *
+   * 以前的默认值是 true：任何人第一次打开链接（新设备、清过缓存、别人的电脑）
+   * 都会看到一整套"示例记录"。那些内容其实是照着自己的生活写的假数据，
+   * 所以很容易被误会成"我的数据被别人看到了"，或者"删掉的记录又回来了"。
+   * 现在默认空白；想看界面长什么样，到「我的 → 重新开始 → 载入示例数据」手动载入。
+   */
+  seedDemo: false,
 };
 
 export function loadSettings(): Settings {

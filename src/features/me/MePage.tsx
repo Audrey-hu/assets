@@ -120,7 +120,7 @@ export function MePage() {
               checked={settings.seedDemo !== false}
               onCheckedChange={(value) => updateSettings({ seedDemo: value })}
               label="新设备首次打开时生成示例数据"
-              description="关掉之后，这台设备（或新设备）第一次打开就是空白的。"
+              description="示例数据只是演示用的假记录，不是你真实的账本。默认关掉，新设备打开就是空白的。"
             />
           </div>
         </Card>

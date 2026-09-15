@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { CalendarDays, ChevronRight, Play, Plus, Sparkles } from "lucide-react";
+import { CalendarDays, ChevronRight, Cloud, Play, Plus, Sparkles } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, EmptyState, Progress, SectionHeader } from "@/components/ui/display";
@@ -40,6 +40,24 @@ export function TodayPage() {
 
   const summary = useMemo(() => monthSummary(data), [data]);
   const afterWork = useMemo(() => afterWorkLastDays(data, 7), [data]);
+
+  /*
+   * 整本账都是空的（新设备、刚清空、或从没记过）。
+   * 这时要明确告诉人家：空白是正常的，记录可能还在云端，登录就能回来 ——
+   * 否则很容易被误会成"数据丢了"或者"我的数据是不是被别人看到了"。
+   */
+  const isEmptyLedger = useMemo(
+    () =>
+      data.events.length === 0 &&
+      data.hobbies.length === 0 &&
+      data.journeys.length === 0 &&
+      data.courses.length === 0 &&
+      data.incomes.length === 0 &&
+      data.assets.length === 0 &&
+      data.savings.length === 0 &&
+      data.investments.length === 0,
+    [data],
+  );
 
   const continueItems = useMemo(() => {
     const hobbies = data.hobbies
@@ -127,10 +145,20 @@ export function TodayPage() {
           <Card className="px-2 py-4">
             <EmptyState
               icon={<Sparkles className="size-5" strokeWidth={1.6} />}
-              title="今天还没有留下记录。"
-              description="不着急。想起来的时候，从一次专注开始。"
+              title={isEmptyLedger ? "这里是空的。" : "今天还没有留下记录。"}
+              description={
+                isEmptyLedger
+                  ? "空白是正常的：这台设备上还没有数据。如果记录在手机或另一台电脑上，去「我的 → 云同步」用同一个邮箱登录一次，就会同步过来。"
+                  : "不着急。想起来的时候，从一次专注开始。"
+              }
               action={
                 <div className="flex flex-wrap items-center justify-center gap-2">
+                  {isEmptyLedger && (
+                    <Button size="pill" variant="outline" onClick={() => navigate("/me")}>
+                      <Cloud className="size-3.5" />
+                      去云同步登录
+                    </Button>
+                  )}
                   <Button size="pill" onClick={() => openModal("focusSetup")}>
                     <Play className="size-3.5" />
                     Start a session
