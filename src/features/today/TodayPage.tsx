@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { CalendarDays, ChevronRight, Cloud, Play, Plus, Sparkles } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
+import { QuoteOfTheDay } from "@/components/QuoteOfTheDay";
 import { Button } from "@/components/ui/button";
 import { Card, EmptyState, Progress, SectionHeader } from "@/components/ui/display";
 import { CategoryBar, CategoryLegend } from "@/components/charts";
@@ -124,8 +125,11 @@ export function TodayPage() {
         }
       />
 
+      {/* ---------------------------- 今日一句 ----------------------------- */}
+      <QuoteOfTheDay />
+
       {/* ------------------------------ Today ------------------------------ */}
-      <section className="pt-5 lg:pt-0">
+      <section className="pt-5">
         <SectionHeader
           title="Today"
           hint={todaysEvents.length ? "今天的记录" : undefined}

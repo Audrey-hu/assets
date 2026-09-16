@@ -94,6 +94,16 @@ export default {
           "Menlo",
           "monospace",
         ],
+        /* 「今日一句」用衬线体，中文优先宋体系，读起来更像一句"话" */
+        quote: [
+          "Songti SC",
+          "STSong",
+          "Source Han Serif SC",
+          "Noto Serif CJK SC",
+          "SimSun",
+          "Georgia",
+          "serif",
+        ],
       },
       boxShadow: {
         soft: "0 1px 2px rgba(29, 28, 26, 0.04), 0 8px 24px -16px rgba(29, 28, 26, 0.18)",

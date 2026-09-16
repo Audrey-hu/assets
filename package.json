@@ -10,6 +10,7 @@
     "build:single": "tsc -b && vite build --config vite.singlefile.config.ts && node scripts/build-singlefile.mjs",
     "test:sync": "node scripts/test-sync.mjs",
     "test:db": "node scripts/test-db.mjs",
+    "test:quotes": "node scripts/test-quotes.mjs",
     "preview": "vite preview --port 4173",
     "typecheck": "tsc -b --noEmit"
   },

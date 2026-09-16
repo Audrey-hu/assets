@@ -39,6 +39,9 @@ jobs:
       - name: 存储层并发测试
         run: pnpm test:db
 
+      - name: 今日一句规则测试
+        run: pnpm test:quotes
+
       - name: Build single file
         run: pnpm build:single
 
