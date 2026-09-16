@@ -48,15 +48,8 @@ export function QuoteOfTheDay({ className }: { className?: string }) {
 
   return (
     <section className={cn("pt-5 lg:pt-0", className)}>
-      <div className="relative overflow-hidden rounded-xl border border-border/70 bg-gradient-to-br from-card via-card to-secondary/50 px-5 py-4">
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-2 -top-7 select-none font-quote text-[92px] leading-none text-border/70"
-        >
-          」
-        </span>
-
-        <div className="relative flex items-center justify-between gap-3">
+      <div className="rounded-xl border border-border/70 bg-gradient-to-br from-card via-card to-secondary/50 px-5 py-4">
+        <div className="flex items-center justify-between gap-3">
           <span className="label-caps">今日一句</span>
           <button
             type="button"
@@ -68,13 +61,20 @@ export function QuoteOfTheDay({ className }: { className?: string }) {
           </button>
         </div>
 
-        <blockquote className="relative mt-2 max-w-[44ch] font-quote text-[17px] leading-[1.8] tracking-[0.01em] text-foreground">
-          {quote.text}
-        </blockquote>
-
-        {quote.from && (
-          <div className="relative mt-2 text-[12px] text-muted-foreground">— {quote.from}</div>
-        )}
+        <div className="mt-2.5 flex gap-3">
+          <span
+            aria-hidden="true"
+            className="mt-1 w-[2px] shrink-0 self-stretch rounded-full bg-primary/25"
+          />
+          <div className="min-w-0">
+            <blockquote className="max-w-[42ch] font-quote text-[17px] leading-[1.8] tracking-[0.01em] text-foreground">
+              {quote.text}
+            </blockquote>
+            {quote.from && (
+              <div className="mt-1.5 text-[12px] text-muted-foreground">— {quote.from}</div>
+            )}
+          </div>
+        </div>
       </div>
     </section>
   );
