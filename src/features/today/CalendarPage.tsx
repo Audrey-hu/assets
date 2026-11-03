@@ -1,15 +1,19 @@
-import { useMemo, useState } from "react";
-import { addMonths, format, startOfMonth, subMonths } from "date-fns";
+import { useMemo, useState, type ReactNode } from "react";
+import { addMonths, endOfMonth, format, startOfMonth, subMonths } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, EmptyState, SectionHeader } from "@/components/ui/display";
+import { CategoryBar, CategoryLegend } from "@/components/charts";
+import { Money } from "@/components/ui/money";
 import { useApp } from "@/store/app-store";
 import { useUI } from "@/store/ui-store";
-import { calendarMonthGrid, dailyBuckets } from "@/lib/stats";
-import { fmtDate, fmtMinutes, fmtMonthLong, todayISO } from "@/lib/format";
+import { calendarMonthGrid, categoryBreakdown, dailyBuckets, monthSummary } from "@/lib/stats";
+import { spendOverview } from "@/lib/spend-stats";
+import { fmtDate, fmtHours, fmtMinutes, fmtMonthLong, todayISO } from "@/lib/format";
 import { TIME_CATEGORY } from "@/lib/labels";
 import { cn } from "@/lib/utils";
+import { navigate } from "@/lib/router";
 
 const WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"];
 
@@ -36,6 +40,46 @@ export function CalendarPage() {
     [data.events, selected],
   );
 
+  const monthKeyStr = format(month, "yyyy-MM");
+  const summary = useMemo(() => monthSummary(data, monthKeyStr), [data, monthKeyStr]);
+  const previousSummary = useMemo(
+    () => monthSummary(data, format(subMonths(month, 1), "yyyy-MM")),
+    [data, month],
+  );
+  const slices = useMemo(
+    () => categoryBreakdown(data, startOfMonth(month), endOfMonth(month)),
+    [data, month],
+  );
+  const spending = useMemo(
+    () => spendOverview(data.spendCategories, data.spendEntries, { month: monthKeyStr }),
+    [data.spendCategories, data.spendEntries, monthKeyStr],
+  );
+
+  /* 本月 vs 上月的时间差，用一句话说清楚 */
+  const deltaMinutes = summary.minutes - previousSummary.minutes;
+
+  const year = month.getFullYear();
+  const yearMonths = useMemo(
+    () =>
+      Array.from({ length: 12 }, (_, index) => {
+        const key = `${year}-${String(index + 1).padStart(2, "0")}`;
+        const s = monthSummary(data, key);
+        return { key, label: `${index + 1} 月`, minutes: s.minutes, sessions: s.sessions };
+      }),
+    [data, year],
+  );
+
+  /** 切月份时，把选中日也挪到那个月（有记录就选第一条，没有就选 1 号） */
+  function goToMonth(next: Date) {
+    const start = startOfMonth(next);
+    setMonth(start);
+    const key = format(start, "yyyy-MM");
+    const firstEvent = [...data.events]
+      .filter((event) => event.date.startsWith(key))
+      .sort((a, b) => (a.date < b.date ? -1 : 1))[0];
+    setSelected(firstEvent?.date ?? format(start, "yyyy-MM-dd"));
+  }
+
   return (
     <div className="animate-fade-up">
       <PageHeader
@@ -49,7 +93,7 @@ export function CalendarPage() {
               size="iconSm"
               variant="ghost"
               aria-label="上个月"
-              onClick={() => setMonth((prev) => subMonths(prev, 1))}
+              onClick={() => goToMonth(subMonths(month, 1))}
             >
               <ChevronLeft className="size-4" />
             </Button>
@@ -57,7 +101,7 @@ export function CalendarPage() {
               size="iconSm"
               variant="ghost"
               aria-label="下个月"
-              onClick={() => setMonth((prev) => addMonths(prev, 1))}
+              onClick={() => goToMonth(addMonths(month, 1))}
             >
               <ChevronRight className="size-4" />
             </Button>
@@ -142,6 +186,135 @@ export function CalendarPage() {
         </div>
       </Card>
 
+      {/* --------------------------- 本月总结 --------------------------- */}
+      <section className="pt-7">
+        <SectionHeader
+          title="本月总结"
+          hint={fmtMonthLong(month)}
+          action={
+            <button
+              type="button"
+              onClick={() => navigate(`#/review/${monthKeyStr}`)}
+              className="text-[13px] text-muted-foreground transition-colors hover:text-foreground"
+            >
+              完整回顾 →
+            </button>
+          }
+        />
+        <Card className="p-5">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3">
+            <Metric
+              label="时间投入"
+              value={fmtHours(summary.minutes)}
+              sub={`${summary.sessions} 次记录`}
+            />
+            <Metric
+              label="与上月"
+              value={
+                deltaMinutes === 0
+                  ? "持平"
+                  : `${deltaMinutes > 0 ? "+" : "−"}${fmtHours(Math.abs(deltaMinutes))}`
+              }
+              sub={
+                previousSummary.minutes === 0
+                  ? "上月没有记录"
+                  : `上月 ${fmtHours(previousSummary.minutes)}`
+              }
+            />
+            <Metric
+              label="个人投入"
+              value={<Money map={summary.invested} fallback="—" />}
+              sub="长期项目里的花费"
+            />
+            <Metric
+              label="分类开销"
+              value={<Money map={spending.total} fallback="—" />}
+              sub={spending.count ? `${spending.count} 笔` : "还没有记录"}
+            />
+            <Metric
+              label="业余收入"
+              value={<Money map={summary.sideIncome} fallback="—" />}
+            />
+            <Metric label="新增资产" value={String(summary.assetsCreated)} />
+          </div>
+
+          {slices.length > 0 && (
+            <div className="mt-5 space-y-3 border-t border-border/70 pt-4">
+              <div className="flex items-center justify-between">
+                <span className="label-caps">时间构成</span>
+                <span className="text-[12px] text-muted-foreground">
+                  {slices.length} 类
+                </span>
+              </div>
+              <CategoryBar slices={slices} />
+              <CategoryLegend slices={slices} />
+            </div>
+          )}
+
+          {summary.mostTime && (
+            <p className="mt-4 border-t border-border/70 pt-3 text-[12.5px] text-muted-foreground">
+              本月最投入：
+              <span className="text-foreground/85">
+                {summary.mostTime.name} · {fmtHours(summary.mostTime.minutes)}
+              </span>
+              {summary.mostConsistent && (
+                <>
+                  <span className="mx-2 text-border">·</span>
+                  最持续：<span className="text-foreground/85">{summary.mostConsistent.name}</span>
+                </>
+              )}
+            </p>
+          )}
+        </Card>
+      </section>
+
+      {/* --------------------------- 月度总览 --------------------------- */}
+      <section className="pt-7">
+        <SectionHeader title="月度总览" hint={`${year} 年`} />
+        <Card className="grid grid-cols-3 overflow-hidden sm:grid-cols-4 lg:grid-cols-6">
+          {yearMonths.map((item) => {
+            const active = item.key === monthKeyStr;
+            const empty = item.sessions === 0 && item.minutes === 0;
+            const future = item.key > format(new Date(), "yyyy-MM");
+            return (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() =>
+                  goToMonth(
+                    new Date(Number(item.key.slice(0, 4)), Number(item.key.slice(5, 7)) - 1, 1),
+                  )
+                }
+                className={cn(
+                  "flex flex-col items-start gap-1 border-b border-r border-border/60 px-3.5 py-3 text-left transition-colors last:border-r-0 hover:bg-secondary/40",
+                  active && "bg-secondary/60",
+                )}
+              >
+                <span
+                  className={cn(
+                    "text-[12px]",
+                    active ? "font-medium text-foreground" : "text-muted-foreground",
+                  )}
+                >
+                  {item.label}
+                </span>
+                <span
+                  className={cn(
+                    "numeral text-[15px] font-medium",
+                    empty ? "text-muted-foreground/60" : "text-foreground",
+                  )}
+                >
+                  {empty ? "—" : fmtHours(item.minutes)}
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  {future ? "未到" : empty ? "无记录" : `${item.sessions} 次`}
+                </span>
+              </button>
+            );
+          })}
+        </Card>
+      </section>
+
       <section className="pt-7">
         <SectionHeader
           title={fmtDate(selected)}
@@ -192,5 +365,25 @@ function Legend({ color, label }: { color: string; label: string }) {
       <span className="size-1.5 rounded-full" style={{ backgroundColor: color }} />
       {label}
     </span>
+  );
+}
+
+function Metric({
+  label,
+  value,
+  sub,
+}: {
+  label: string;
+  value: ReactNode;
+  sub?: string;
+}) {
+  return (
+    <div>
+      <div className="text-[11.5px] text-muted-foreground">{label}</div>
+      <div className="mt-1 numeral text-[18px] font-medium leading-tight text-foreground">
+        {value}
+      </div>
+      {sub && <div className="mt-0.5 text-[11.5px] text-muted-foreground">{sub}</div>}
+    </div>
   );
 }
