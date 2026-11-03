@@ -23,7 +23,34 @@ import {
 } from "@/lib/format";
 import { Money } from "@/components/ui/money";
 import { differenceInCalendarDays } from "date-fns";
-import type { SavingsItem } from "@/lib/types";
+import type { SavingsItem, SavingsTx } from "@/lib/types";
+
+/** 一个储蓄项最近几条变动，三种卡片共用同一套样式 */
+function SavingsTxList({ txs, currency }: { txs: SavingsTx[]; currency?: string }) {
+  if (txs.length === 0) return null;
+  return (
+    <div className="mt-4 divide-y divide-border/70 border-t border-border/70 pt-1">
+      {txs.map((tx) => (
+        <div key={tx.id} className="flex items-center justify-between gap-3 py-2">
+          <span className="min-w-0">
+            <span className="block truncate text-[13px] text-foreground">{tx.reason}</span>
+            <span className="text-[11.5px] text-muted-foreground numeral">{fmtDate(tx.date)}</span>
+          </span>
+          <span
+            className={
+              tx.amount >= 0
+                ? "numeral shrink-0 text-[13.5px] font-medium text-primary"
+                : "numeral shrink-0 text-[13.5px] font-medium text-foreground/75"
+            }
+          >
+            {tx.amount >= 0 ? "+" : "−"}
+            {fmtMoney(Math.abs(tx.amount), { currency: tx.currency ?? currency })}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export function SavingsPage() {
   const { data } = useApp();
@@ -41,6 +68,13 @@ export function SavingsPage() {
   /* 里程碑只能按一个币种算，取金额最大的那个 */
   const milestoneBase = dominantMoney(totals.total);
   const nextMilestone = SAVINGS_MILESTONES.find((m) => m > (milestoneBase?.amount ?? 0));
+  const reservoirTxs = useMemo(
+    () =>
+      totals.reservoir
+        ? savingTxFor(totals.reservoir.id, data.savingsTx).slice(0, 3)
+        : [],
+    [totals.reservoir, data.savingsTx],
+  );
 
   return (
     <div className="space-y-8">
@@ -144,6 +178,16 @@ export function SavingsPage() {
                   </span>
                 </p>
               )}
+              <Button
+                size="pill"
+                variant="outline"
+                className="mt-4"
+                onClick={() => newSavingsTx({ itemId: totals.reservoir!.id })}
+              >
+                <Plus className="size-3.5" />
+                记录变动
+              </Button>
+              <SavingsTxList txs={reservoirTxs} currency={totals.reservoir.currency} />
             </Card>
           ) : (
             <Card className="flex flex-col items-start gap-3 p-5">
@@ -281,32 +325,7 @@ export function SavingsPage() {
                     记录变动
                   </Button>
 
-                  {txs.length > 0 && (
-                    <div className="mt-4 divide-y divide-border/70 border-t border-border/70 pt-1">
-                      {txs.map((tx) => (
-                        <div key={tx.id} className="flex items-center justify-between gap-3 py-2">
-                          <span className="min-w-0">
-                            <span className="block truncate text-[13px] text-foreground">
-                              {tx.reason}
-                            </span>
-                            <span className="text-[11.5px] text-muted-foreground numeral">
-                              {fmtDate(tx.date)}
-                            </span>
-                          </span>
-                          <span
-                            className={
-                              tx.amount >= 0
-                                ? "numeral shrink-0 text-[13.5px] font-medium text-primary"
-                                : "numeral shrink-0 text-[13.5px] font-medium text-foreground/75"
-                            }
-                          >
-                            {tx.amount >= 0 ? "+" : "−"}
-                            {fmtMoney(Math.abs(tx.amount), { currency: tx.currency ?? envelope.currency })}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <SavingsTxList txs={txs} currency={envelope.currency} />
                 </Card>
               );
             })}
@@ -493,28 +512,7 @@ function EmergencyCard({
         <Plus className="size-3.5" />
         记录变动
       </Button>
-      {txs.length > 0 && (
-        <div className="mt-4 divide-y divide-border/70 border-t border-border/70 pt-1">
-          {txs.map((tx) => (
-            <div key={tx.id} className="flex items-center justify-between gap-3 py-2">
-              <span className="min-w-0">
-                <span className="block truncate text-[13px] text-foreground">{tx.reason}</span>
-                <span className="text-[11.5px] text-muted-foreground numeral">{fmtDate(tx.date)}</span>
-              </span>
-              <span
-                className={
-                  tx.amount >= 0
-                    ? "numeral shrink-0 text-[13.5px] font-medium text-primary"
-                    : "numeral shrink-0 text-[13.5px] font-medium text-foreground/75"
-                }
-              >
-                {tx.amount >= 0 ? "+" : "−"}
-                {fmtMoney(Math.abs(tx.amount), { currency })}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
+      <SavingsTxList txs={txs} currency={currency} />
     </Card>
   );
 }
