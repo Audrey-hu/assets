@@ -341,6 +341,14 @@ export interface SpendCategory {
   updatedAt: string;
 }
 
+/** 一笔开销可以关联的对象类型 */
+export type SpendLinkKind = "savings" | "journey" | "hobby" | "asset" | "income";
+
+export interface SpendLink {
+  kind: SpendLinkKind;
+  id: ID;
+}
+
 export interface SpendEntry {
   id: ID;
   categoryId: ID;
@@ -348,15 +356,18 @@ export interface SpendEntry {
   tag?: string;
   amount: number;
   currency?: CurrencyCode;
+  /** 关联对象：储蓄 / Journey / 兴趣 / 资产 / 收入项目 */
+  link?: SpendLink;
   /**
-   * 这笔钱从哪个储蓄里出（可选）。
-   * 只是一个"来源标记"：默认不动余额，除非同时打开 deductFromSavings。
+   * 旧字段，仅用于兼容：等价于 link = { kind: "savings", id }。
+   * 新记录一律写 link。
    */
   savingsItemId?: ID;
   /**
    * 是否真的从上面那个储蓄里扣钱。
    *   true  = 扣减余额，并留一条可取回的流水
    *   false = 只标记"这笔属于哪个储蓄/计划"，余额不变
+   * 只有 link.kind === "savings" 时才有意义。
    * 旧数据没有这个字段时按 true 处理（当时关联即扣款）。
    */
   deductFromSavings?: boolean;

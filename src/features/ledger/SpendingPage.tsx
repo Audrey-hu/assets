@@ -13,6 +13,7 @@ import {
   monthLabel,
   shiftMonth,
   spendOverview,
+  spendLinkOf,
 } from "@/lib/spend-stats";
 import { fmtMoney, hasMoney, monthKey, type MoneyMap } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -438,19 +439,43 @@ export function SpendingPage() {
                                 {entry.tag}
                               </span>
                             )}
-                            {entry.savingsItemId && (
-                              <span
-                                className={
-                                  deductsFromSavings(entry)
-                                    ? "ml-2 rounded-full bg-accent px-1.5 py-0.5 text-[11px] font-normal text-accent-foreground"
-                                    : "ml-2 rounded-full bg-secondary px-1.5 py-0.5 text-[11px] font-normal text-muted-foreground"
-                                }
-                              >
-                                {deductsFromSavings(entry) ? "" : "关联 · "}
-                                {data.savings.find((item) => item.id === entry.savingsItemId)?.name ??
-                                  "储蓄"}
-                              </span>
-                            )}
+                            {(() => {
+                              const link = spendLinkOf(entry);
+                              if (!link) return null;
+                              const target =
+                                link.kind === "savings"
+                                  ? data.savings.find((item) => item.id === link.id)
+                                  : link.kind === "journey"
+                                    ? data.journeys.find((item) => item.id === link.id)
+                                    : link.kind === "hobby"
+                                      ? data.hobbies.find((item) => item.id === link.id)
+                                      : link.kind === "asset"
+                                        ? data.assets.find((item) => item.id === link.id)
+                                        : data.incomes.find((item) => item.id === link.id);
+                              const deducted = link.kind === "savings" && deductsFromSavings(entry);
+                              const icons: Record<string, string> = {
+                                savings: "💰",
+                                journey: "🎯",
+                                hobby: "🥁",
+                                asset: "📦",
+                                income: "💼",
+                              };
+                              return (
+                                <span
+                                  className={
+                                    deducted
+                                      ? "ml-2 rounded-full bg-accent px-1.5 py-0.5 text-[11px] font-normal text-accent-foreground"
+                                      : "ml-2 rounded-full bg-secondary px-1.5 py-0.5 text-[11px] font-normal text-muted-foreground"
+                                  }
+                                >
+                                  <span aria-hidden className="mr-0.5">
+                                    {icons[link.kind]}
+                                  </span>
+                                  {deducted ? "" : "关联 · "}
+                                  {target?.name ?? "已删除的对象"}
+                                </span>
+                              );
+                            })()}
                           </span>
                           {entry.note && (
                             <span className="mt-0.5 block truncate text-[12px] text-muted-foreground">

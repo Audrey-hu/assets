@@ -14,7 +14,7 @@ import {
   todayISO,
   type MoneyMap,
 } from "./format";
-import type { SpendCategory, SpendEntry } from "./types";
+import type { SpendCategory, SpendEntry, SpendLink } from "./types";
 
 export interface SpendTagStat {
   tag: string;
@@ -101,11 +101,21 @@ export function sumEntries(entries: SpendEntry[]): MoneyMap {
 }
 
 /**
+ * 读出这笔开销关联的对象。
+ * 旧数据只有 savingsItemId，这里统一折算成 link，后面的逻辑只认 link。
+ */
+export function spendLinkOf(entry: Partial<SpendEntry>): SpendLink | undefined {
+  if (entry.link?.kind && entry.link.id) return entry.link;
+  if (entry.savingsItemId) return { kind: "savings", id: entry.savingsItemId };
+  return undefined;
+}
+
+/**
  * 关联储蓄 ≠ 从小荷包扣钱。
  * 只有明确打开 deductFromSavings 才算扣款；旧数据没有这个字段时按扣款处理。
  */
 export function deductsFromSavings(entry: SpendEntry): boolean {
-  return Boolean(entry.savingsItemId) && entry.deductFromSavings !== false;
+  return spendLinkOf(entry)?.kind === "savings" && entry.deductFromSavings !== false;
 }
 
 /** 某个月的总开销 */

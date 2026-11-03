@@ -28,7 +28,7 @@ import { setActiveCurrency } from "@/lib/format";
 import { buildDemoData, storeDemoPhotos } from "@/lib/seed";
 import { getSession } from "@/lib/cloud";
 import type { Dataset } from "@/lib/stats";
-import { deductsFromSavings } from "@/lib/spend-stats";
+import { deductsFromSavings, spendLinkOf } from "@/lib/spend-stats";
 import type {
   Asset,
   Course,
@@ -728,9 +728,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const restored = new Map<ID, SavingsItem>();
       for (const entry of doomed) {
         if (!deductsFromSavings(entry)) continue;
-        const item =
-          restored.get(entry.savingsItemId!) ??
-          data.savings.find((s) => s.id === entry.savingsItemId);
+        const savingsId = spendLinkOf(entry)?.id;
+        if (!savingsId) continue;
+        const item = restored.get(savingsId) ?? data.savings.find((s) => s.id === savingsId);
         if (!item) continue;
         restored.set(item.id, {
           ...item,
@@ -778,7 +778,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const touched = new Set<ID>();
 
       if (previous && deductsFromSavings(previous)) {
-        const item = savings.get(previous.savingsItemId!);
+        const savingsId = spendLinkOf(previous)?.id;
+        const item = savingsId ? savings.get(savingsId) : undefined;
         if (item) {
           item.current = (item.current ?? 0) + previous.amount;
           item.updatedAt = now;
@@ -788,7 +789,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       let spendTx: SavingsTx | undefined;
       if (deductsFromSavings(next)) {
-        const item = savings.get(next.savingsItemId!);
+        const savingsId = spendLinkOf(next)?.id;
+        const item = savingsId ? savings.get(savingsId) : undefined;
         if (item) {
           item.current = Math.max(0, (item.current ?? 0) - next.amount);
           item.updatedAt = now;
@@ -838,7 +840,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       let restored: SavingsItem | undefined;
 
       if (target && deductsFromSavings(target)) {
-        const item = data.savings.find((s) => s.id === target.savingsItemId);
+        const savingsId = spendLinkOf(target)?.id;
+        const item = data.savings.find((s) => s.id === savingsId);
         if (item) {
           restored = { ...item, current: (item.current ?? 0) + target.amount, updatedAt: now };
           await putRecord("savings", restored);

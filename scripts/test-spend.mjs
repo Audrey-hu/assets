@@ -53,6 +53,7 @@ const {
   spendOverview,
   monthChange,
   deductsFromSavings,
+  spendLinkOf,
 } = await import(pathToFileURL(bundle).href);
 
 let passed = 0;
@@ -190,6 +191,17 @@ check(
   deductsFromSavings({ savingsItemId: "sv", deductFromSavings: false }) === false,
 );
 check("没关联就不扣款", deductsFromSavings({}) === false);
+check(
+  "旧数据：savingsItemId 自动折算成 savings 关联",
+  spendLinkOf({ savingsItemId: "sv" })?.kind === "savings" &&
+    spendLinkOf({ savingsItemId: "sv" })?.id === "sv",
+);
+check(
+  "新数据：可以关联非储蓄对象",
+  spendLinkOf({ link: { kind: "journey", id: "j1" } })?.kind === "journey" &&
+    spendLinkOf({ link: { kind: "journey", id: "j1" } })?.id === "j1",
+);
+check("没有关联对象时返回空", spendLinkOf({}) === undefined);
 
 /* --------------------------- 单币种下的占比 --------------------------- */
 const single = spendOverview(categories, entries.filter((row) => row.currency !== "GBP"), {

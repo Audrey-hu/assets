@@ -6,11 +6,11 @@ import { Chip, Field, Input, Switch, Textarea } from "@/components/ui/form";
 import { AccentPicker, CurrencyPicker, EmojiPicker, MoneyInput } from "./fields";
 import { fmtMoney, sumMoney, todayISO } from "@/lib/format";
 import { Money } from "@/components/ui/money";
-import { deductsFromSavings } from "@/lib/spend-stats";
+import { deductsFromSavings, spendLinkOf } from "@/lib/spend-stats";
 import { useApp } from "@/store/app-store";
 import { useUI } from "@/store/ui-store";
 import { uid } from "@/lib/utils";
-import type { SpendCategory, SpendEntry } from "@/lib/types";
+import type { SpendCategory, SpendEntry, SpendLinkKind } from "@/lib/types";
 import type { CurrencyCode } from "@/lib/format";
 
 const EMOJIS = [
@@ -30,6 +30,14 @@ const EMOJIS = [
   "🪴",
   "🎬",
   "🏋️",
+];
+
+const LINK_KINDS: { kind: SpendLinkKind; label: string; icon: string }[] = [
+  { kind: "savings", label: "储蓄", icon: "💰" },
+  { kind: "journey", label: "Journey", icon: "🎯" },
+  { kind: "hobby", label: "兴趣", icon: "🥁" },
+  { kind: "asset", label: "资产", icon: "📦" },
+  { kind: "income", label: "收入", icon: "💼" },
 ];
 
 function parseTags(text: string): string[] {
@@ -215,7 +223,8 @@ export function SpendEntryEditor() {
   const [categoryId, setCategoryId] = useState("");
   const [amount, setAmount] = useState<number | undefined>();
   const [currency, setCurrency] = useState<CurrencyCode>("CNY");
-  const [savingsItemId, setSavingsItemId] = useState("");
+  const [linkKind, setLinkKind] = useState<SpendLinkKind | "">("");
+  const [linkId, setLinkId] = useState("");
   const [deduct, setDeduct] = useState(false);
   const [date, setDate] = useState(todayISO());
   const [tag, setTag] = useState("");
@@ -229,9 +238,17 @@ export function SpendEntryEditor() {
     setCategoryId(initial.categoryId ?? data.spendCategories[0]?.id ?? "");
     setAmount(initial.amount);
     setCurrency(initial.currency ?? settings.currency);
-    setSavingsItemId(initial.savingsItemId ?? "");
+    const initialLink = spendLinkOf(initial);
+    setLinkKind(initialLink?.kind ?? "");
+    setLinkId(initialLink?.id ?? "");
     /* 旧记录没有这个字段时按"关联即扣款"处理 */
-    setDeduct(initial.id ? (initial.deductFromSavings ?? Boolean(initial.savingsItemId)) : false);
+    setDeduct(
+      initialLink?.kind === "savings"
+        ? initial.id
+          ? (initial.deductFromSavings ?? true)
+          : false
+        : false,
+    );
     setDate(initial.date ?? todayISO());
     setTag(initial.tag ?? "");
     setNote(initial.note ?? "");
@@ -244,7 +261,7 @@ export function SpendEntryEditor() {
   const category = data.spendCategories.find((item) => item.id === categoryId);
   const suggestions = category?.tags ?? [];
 
-  /* 只有「还有余额」的储蓄能作为来源，并且币种要对得上 */
+  /* 可关联的对象；储蓄要求同币种（因为可能要从里面扣钱） */
   const savingsOptions = useMemo(
     () =>
       data.savings.filter(
@@ -254,12 +271,55 @@ export function SpendEntryEditor() {
       ),
     [data.savings, currency, settings.currency],
   );
-  const savingsItem = savingsOptions.find((item) => item.id === savingsItemId);
+  const linkOptions = useMemo(() => {
+    switch (linkKind) {
+      case "savings":
+        return savingsOptions.map((item) => ({
+          id: item.id,
+          label: item.name,
+          icon: item.emoji ?? (item.kind === "envelope" ? "🐷" : "💰"),
+          hint: fmtMoney(item.current ?? 0, { currency: item.currency }),
+        }));
+      case "journey":
+        return data.journeys.map((item) => ({
+          id: item.id,
+          label: item.name,
+          icon: "🎯",
+          hint: "",
+        }));
+      case "hobby":
+        return data.hobbies.map((item) => ({
+          id: item.id,
+          label: item.name,
+          icon: item.icon || "🥁",
+          hint: "",
+        }));
+      case "asset":
+        return data.assets.map((item) => ({
+          id: item.id,
+          label: item.name,
+          icon: "📦",
+          hint: "",
+        }));
+      case "income":
+        return data.incomes.map((item) => ({
+          id: item.id,
+          label: item.name,
+          icon: "💼",
+          hint: fmtMoney(item.revenue ?? 0, { currency: item.currency }),
+        }));
+      default:
+        return [];
+    }
+  }, [linkKind, savingsOptions, data.journeys, data.hobbies, data.assets, data.incomes]);
+
+  const savingsItem = linkKind === "savings" ? savingsOptions.find((item) => item.id === linkId) : undefined;
   /* 只有上一版真的扣过款，才需要先把那笔钱加回来再算 */
   const previousDeducted = Boolean(initial.id) && deductsFromSavings(initial as SpendEntry);
+  const previousLink = spendLinkOf(initial);
   const savingsAvailable = savingsItem
     ? (savingsItem.current ?? 0) +
-      (previousDeducted && initial.savingsItemId === savingsItem.id ? (initial.amount ?? 0) : 0)
+      (previousDeducted && previousLink?.id === savingsItem.id ? (initial.amount ?? 0) : 0)
     : 0;
   const insufficient =
     Boolean(savingsItem) && deduct && amount !== undefined && amount > savingsAvailable + 0.004;
@@ -303,8 +363,10 @@ export function SpendEntryEditor() {
       tag: tag.trim() || undefined,
       amount,
       currency,
-      savingsItemId: savingsItemId || undefined,
-      deductFromSavings: savingsItemId ? deduct : undefined,
+      link: linkKind && linkId ? { kind: linkKind, id: linkId } : undefined,
+      /* 兼容旧字段：储蓄来源仍然写进 savingsItemId */
+      savingsItemId: linkKind === "savings" ? linkId || undefined : undefined,
+      deductFromSavings: linkKind === "savings" && linkId ? deduct : undefined,
       date,
       note: note.trim() || undefined,
       createdAt: initial.createdAt ?? now,
@@ -368,49 +430,84 @@ export function SpendEntryEditor() {
                 setCurrency(next);
                 /* 换了币种，原来选中的储蓄就对不上了 */
                 if (savingsItem && (savingsItem.currency ?? settings.currency) !== next) {
-                  setSavingsItemId("");
+                  setLinkId("");
+                  setDeduct(false);
                 }
               }}
             />
           </div>
 
-          <Field
-            label="关联储蓄"
-            hint="可选。可以只标记来源，也可以同时从小荷包扣款"
-          >
+          <Field label="关联对象" hint="可选。默认只做标记，不影响任何余额">
+            {/* 先选类型 */}
             <div className="flex flex-wrap gap-1.5">
               <Chip
-                active={!savingsItemId}
+                active={!linkKind}
                 onClick={() => {
-                  setSavingsItemId("");
+                  setLinkKind("");
+                  setLinkId("");
                   setDeduct(false);
                 }}
               >
                 不关联
               </Chip>
-              {savingsOptions.map((item) => (
+              {LINK_KINDS.map((item) => (
                 <Chip
-                  key={item.id}
-                  active={savingsItemId === item.id}
+                  key={item.kind}
+                  active={linkKind === item.kind}
                   onClick={() => {
-                    if (savingsItemId === item.id) {
-                      setSavingsItemId("");
+                    if (linkKind === item.kind) {
+                      setLinkKind("");
+                      setLinkId("");
                       setDeduct(false);
                     } else {
-                      setSavingsItemId(item.id);
+                      setLinkKind(item.kind);
+                      setLinkId("");
+                      setDeduct(false);
                     }
                   }}
                 >
-                  <span aria-hidden>{item.emoji ?? (item.kind === "envelope" ? "🐷" : "💰")}</span>
-                  {item.name} · {fmtMoney(item.current ?? 0, { currency: item.currency })}
+                  <span aria-hidden>{item.icon}</span>
+                  {item.label}
                 </Chip>
               ))}
             </div>
-            {savingsOptions.length === 0 && (
-              <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">
-                没有同币种的储蓄可选。先到 Ledger → 储蓄里建一个小荷包，或把币种改一致。
+
+            {/* 再选具体条目 */}
+            {linkKind && (
+              <div className="mt-2 flex flex-wrap gap-1.5 border-t border-border/60 pt-2">
+                {linkOptions.map((option) => (
+                  <Chip
+                    key={option.id}
+                    active={linkId === option.id}
+                    onClick={() => {
+                      setLinkId(linkId === option.id ? "" : option.id);
+                      if (linkKind !== "savings") setDeduct(false);
+                    }}
+                  >
+                    <span aria-hidden>{option.icon}</span>
+                    {option.label}
+                    {option.hint && (
+                      <span className="text-[11px] text-muted-foreground">{option.hint}</span>
+                    )}
+                  </Chip>
+                ))}
+                {linkOptions.length === 0 && (
+                  <p className="text-[12px] leading-relaxed text-muted-foreground">
+                    {linkKind === "savings"
+                      ? "没有同币种的储蓄可选。先到 Ledger → 储蓄里建一个，或把币种改一致。"
+                      : "这一类还没有可以关联的条目。"}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {linkKind && linkKind !== "savings" && linkId && (
+              <p className="mt-2 text-[12.5px] leading-relaxed text-muted-foreground">
+                只标记为「{linkOptions.find((option) => option.id === linkId)?.label}」，
+                不涉及余额，也不影响任何统计口径。
               </p>
             )}
+
             {savingsItem && (
               <>
                 <div className="mt-3 rounded-md border border-border/70 bg-secondary/30 px-3.5 py-2.5">
