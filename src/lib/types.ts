@@ -350,10 +350,16 @@ export interface SpendEntry {
   currency?: CurrencyCode;
   /**
    * 这笔钱从哪个储蓄里出（可选）。
-   * 关联后会在这笔开销保存时扣减该储蓄余额，并留一条可追溯的取出流水；
-   * 编辑或删除这笔开销时，会自动把钱还回去。
+   * 只是一个"来源标记"：默认不动余额，除非同时打开 deductFromSavings。
    */
   savingsItemId?: ID;
+  /**
+   * 是否真的从上面那个储蓄里扣钱。
+   *   true  = 扣减余额，并留一条可取回的流水
+   *   false = 只标记"这笔属于哪个储蓄/计划"，余额不变
+   * 旧数据没有这个字段时按 true 处理（当时关联即扣款）。
+   */
+  deductFromSavings?: boolean;
   /** YYYY-MM-DD */
   date: string;
   note?: string;

@@ -100,6 +100,14 @@ export function sumEntries(entries: SpendEntry[]): MoneyMap {
   return map;
 }
 
+/**
+ * 关联储蓄 ≠ 从小荷包扣钱。
+ * 只有明确打开 deductFromSavings 才算扣款；旧数据没有这个字段时按扣款处理。
+ */
+export function deductsFromSavings(entry: SpendEntry): boolean {
+  return Boolean(entry.savingsItemId) && entry.deductFromSavings !== false;
+}
+
 /** 某个月的总开销 */
 export function spendMonthTotal(entries: SpendEntry[], month: string): MoneyMap {
   return sumEntries(entries.filter((entry) => monthOf(entry.date) === month));
@@ -154,7 +162,7 @@ export function spendOverview(
 
   const thisMonthEntries = entries.filter((entry) => monthOf(entry.date) === month);
   const total = sumEntries(thisMonthEntries);
-  const fromSavings = sumEntries(thisMonthEntries.filter((entry) => Boolean(entry.savingsItemId)));
+  const fromSavings = sumEntries(thisMonthEntries.filter(deductsFromSavings));
   const previous = spendMonthTotal(entries, previousMonth);
 
   const knownIds = new Set(categories.map((category) => category.id));

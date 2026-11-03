@@ -28,6 +28,7 @@ import { setActiveCurrency } from "@/lib/format";
 import { buildDemoData, storeDemoPhotos } from "@/lib/seed";
 import { getSession } from "@/lib/cloud";
 import type { Dataset } from "@/lib/stats";
+import { deductsFromSavings } from "@/lib/spend-stats";
 import type {
   Asset,
   Course,
@@ -726,8 +727,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       /* 这些记录如果是从储蓄里出的，删分类时要把钱还回去 */
       const restored = new Map<ID, SavingsItem>();
       for (const entry of doomed) {
-        if (!entry.savingsItemId) continue;
-        const item = restored.get(entry.savingsItemId) ?? data.savings.find((s) => s.id === entry.savingsItemId);
+        if (!deductsFromSavings(entry)) continue;
+        const item =
+          restored.get(entry.savingsItemId!) ??
+          data.savings.find((s) => s.id === entry.savingsItemId);
         if (!item) continue;
         restored.set(item.id, {
           ...item,
@@ -774,8 +777,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const savings = new Map(data.savings.map((item) => [item.id, { ...item }]));
       const touched = new Set<ID>();
 
-      if (previous?.savingsItemId) {
-        const item = savings.get(previous.savingsItemId);
+      if (previous && deductsFromSavings(previous)) {
+        const item = savings.get(previous.savingsItemId!);
         if (item) {
           item.current = (item.current ?? 0) + previous.amount;
           item.updatedAt = now;
@@ -784,8 +787,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
 
       let spendTx: SavingsTx | undefined;
-      if (next.savingsItemId) {
-        const item = savings.get(next.savingsItemId);
+      if (deductsFromSavings(next)) {
+        const item = savings.get(next.savingsItemId!);
         if (item) {
           item.current = Math.max(0, (item.current ?? 0) - next.amount);
           item.updatedAt = now;
@@ -805,7 +808,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       await putRecord("spendEntries", next);
       if (spendTx) await putRecord("savingsTx", spendTx);
-      else if (previous?.savingsItemId) await deleteRecord("savingsTx", txId);
+      else if (previous && deductsFromSavings(previous)) await deleteRecord("savingsTx", txId);
       for (const id of touched) {
         const item = savings.get(id);
         if (item) await putRecord("savings", item);
@@ -834,7 +837,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const now = new Date().toISOString();
       let restored: SavingsItem | undefined;
 
-      if (target?.savingsItemId) {
+      if (target && deductsFromSavings(target)) {
         const item = data.savings.find((s) => s.id === target.savingsItemId);
         if (item) {
           restored = { ...item, current: (item.current ?? 0) + target.amount, updatedAt: now };

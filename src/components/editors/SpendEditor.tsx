@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { Dialog } from "@radix-ui/react-dialog";
 import { SheetBody, SheetContent, SheetFooter, SheetHeader } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Chip, Field, Input, Textarea } from "@/components/ui/form";
+import { Chip, Field, Input, Switch, Textarea } from "@/components/ui/form";
 import { AccentPicker, CurrencyPicker, EmojiPicker, MoneyInput } from "./fields";
 import { fmtMoney, sumMoney, todayISO } from "@/lib/format";
 import { Money } from "@/components/ui/money";
+import { deductsFromSavings } from "@/lib/spend-stats";
 import { useApp } from "@/store/app-store";
 import { useUI } from "@/store/ui-store";
 import { uid } from "@/lib/utils";
@@ -215,6 +216,7 @@ export function SpendEntryEditor() {
   const [amount, setAmount] = useState<number | undefined>();
   const [currency, setCurrency] = useState<CurrencyCode>("CNY");
   const [savingsItemId, setSavingsItemId] = useState("");
+  const [deduct, setDeduct] = useState(false);
   const [date, setDate] = useState(todayISO());
   const [tag, setTag] = useState("");
   const [note, setNote] = useState("");
@@ -228,6 +230,8 @@ export function SpendEntryEditor() {
     setAmount(initial.amount);
     setCurrency(initial.currency ?? settings.currency);
     setSavingsItemId(initial.savingsItemId ?? "");
+    /* 旧记录没有这个字段时按"关联即扣款"处理 */
+    setDeduct(initial.id ? (initial.deductFromSavings ?? Boolean(initial.savingsItemId)) : false);
     setDate(initial.date ?? todayISO());
     setTag(initial.tag ?? "");
     setNote(initial.note ?? "");
@@ -251,13 +255,14 @@ export function SpendEntryEditor() {
     [data.savings, currency, settings.currency],
   );
   const savingsItem = savingsOptions.find((item) => item.id === savingsItemId);
-  /* 编辑时这笔钱已经扣过了，判断余额要先把旧的那笔加回来 */
+  /* 只有上一版真的扣过款，才需要先把那笔钱加回来再算 */
+  const previousDeducted = Boolean(initial.id) && deductsFromSavings(initial as SpendEntry);
   const savingsAvailable = savingsItem
     ? (savingsItem.current ?? 0) +
-      (initial.id && initial.savingsItemId === savingsItem.id ? (initial.amount ?? 0) : 0)
+      (previousDeducted && initial.savingsItemId === savingsItem.id ? (initial.amount ?? 0) : 0)
     : 0;
   const insufficient =
-    Boolean(savingsItem) && amount !== undefined && amount > savingsAvailable + 0.004;
+    Boolean(savingsItem) && deduct && amount !== undefined && amount > savingsAvailable + 0.004;
 
   async function createCategoryInline() {
     const name = newCategoryName.trim();
@@ -299,6 +304,7 @@ export function SpendEntryEditor() {
       amount,
       currency,
       savingsItemId: savingsItemId || undefined,
+      deductFromSavings: savingsItemId ? deduct : undefined,
       date,
       note: note.trim() || undefined,
       createdAt: initial.createdAt ?? now,
@@ -368,16 +374,32 @@ export function SpendEntryEditor() {
             />
           </div>
 
-          <Field label="从储蓄里出" hint="可选。记完自动扣减，改或删会自动退回">
+          <Field
+            label="关联储蓄"
+            hint="可选。可以只标记来源，也可以同时从小荷包扣款"
+          >
             <div className="flex flex-wrap gap-1.5">
-              <Chip active={!savingsItemId} onClick={() => setSavingsItemId("")}>
+              <Chip
+                active={!savingsItemId}
+                onClick={() => {
+                  setSavingsItemId("");
+                  setDeduct(false);
+                }}
+              >
                 不关联
               </Chip>
               {savingsOptions.map((item) => (
                 <Chip
                   key={item.id}
                   active={savingsItemId === item.id}
-                  onClick={() => setSavingsItemId(savingsItemId === item.id ? "" : item.id)}
+                  onClick={() => {
+                    if (savingsItemId === item.id) {
+                      setSavingsItemId("");
+                      setDeduct(false);
+                    } else {
+                      setSavingsItemId(item.id);
+                    }
+                  }}
                 >
                   <span aria-hidden>{item.emoji ?? (item.kind === "envelope" ? "🐷" : "💰")}</span>
                   {item.name} · {fmtMoney(item.current ?? 0, { currency: item.currency })}
@@ -390,20 +412,40 @@ export function SpendEntryEditor() {
               </p>
             )}
             {savingsItem && (
-              <p
-                className={
-                  insufficient
-                    ? "mt-2 text-[12.5px] leading-relaxed text-destructive"
-                    : "mt-2 text-[12.5px] leading-relaxed text-muted-foreground"
-                }
-              >
-                {savingsItem.name} 现在 {fmtMoney(savingsAvailable, { currency: savingsItem.currency })}
-                {amount !== undefined && amount > 0
-                  ? ` → 记完还剩 ${fmtMoney(Math.max(0, savingsAvailable - amount), {
-                      currency: savingsItem.currency,
-                    })}`
-                  : ""}
-              </p>
+              <>
+                <div className="mt-3 rounded-md border border-border/70 bg-secondary/30 px-3.5 py-2.5">
+                  <Switch
+                    checked={deduct}
+                    onCheckedChange={setDeduct}
+                    label="同时从小荷包扣款"
+                    description="关掉 = 只标记这笔属于哪里，余额不变。"
+                  />
+                </div>
+                <p
+                  className={
+                    insufficient
+                      ? "mt-2 text-[12.5px] leading-relaxed text-destructive"
+                      : "mt-2 text-[12.5px] leading-relaxed text-muted-foreground"
+                  }
+                >
+                  {deduct ? (
+                    <>
+                      {savingsItem.name} 现在{" "}
+                      {fmtMoney(savingsAvailable, { currency: savingsItem.currency })}
+                      {amount !== undefined && amount > 0
+                        ? ` → 记完还剩 ${fmtMoney(Math.max(0, savingsAvailable - amount), {
+                            currency: savingsItem.currency,
+                          })}`
+                        : ""}
+                    </>
+                  ) : (
+                    <>
+                      只标记为「{savingsItem.name}」，不会改动余额（现在{" "}
+                      {fmtMoney(savingsItem.current ?? 0, { currency: savingsItem.currency })}）。
+                    </>
+                  )}
+                </p>
+              </>
             )}
           </Field>
 

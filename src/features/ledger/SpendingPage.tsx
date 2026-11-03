@@ -7,7 +7,13 @@ import { Money } from "@/components/ui/money";
 import { TrendChart } from "@/components/charts";
 import { useApp } from "@/store/app-store";
 import { useEditors, useUI } from "@/store/ui-store";
-import { monthChange, monthLabel, shiftMonth, spendOverview } from "@/lib/spend-stats";
+import {
+  deductsFromSavings,
+  monthChange,
+  monthLabel,
+  shiftMonth,
+  spendOverview,
+} from "@/lib/spend-stats";
 import { fmtMoney, hasMoney, monthKey, type MoneyMap } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -433,7 +439,14 @@ export function SpendingPage() {
                               </span>
                             )}
                             {entry.savingsItemId && (
-                              <span className="ml-2 rounded-full bg-accent px-1.5 py-0.5 text-[11px] font-normal text-accent-foreground">
+                              <span
+                                className={
+                                  deductsFromSavings(entry)
+                                    ? "ml-2 rounded-full bg-accent px-1.5 py-0.5 text-[11px] font-normal text-accent-foreground"
+                                    : "ml-2 rounded-full bg-secondary px-1.5 py-0.5 text-[11px] font-normal text-muted-foreground"
+                                }
+                              >
+                                {deductsFromSavings(entry) ? "" : "关联 · "}
                                 {data.savings.find((item) => item.id === entry.savingsItemId)?.name ??
                                   "储蓄"}
                               </span>

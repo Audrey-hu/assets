@@ -45,9 +45,15 @@ execFileSync(findEsbuild(), [entry, "--bundle", "--format=esm", `--outfile=${bun
   stdio: "inherit",
 });
 
-const { monthOf, monthLabel, shiftMonth, spendMonthTotal, spendOverview, monthChange } = await import(
-  pathToFileURL(bundle).href
-);
+const {
+  monthOf,
+  monthLabel,
+  shiftMonth,
+  spendMonthTotal,
+  spendOverview,
+  monthChange,
+  deductsFromSavings,
+} = await import(pathToFileURL(bundle).href);
 
 let passed = 0;
 let failed = 0;
@@ -114,6 +120,10 @@ const entries = [
   row("e6", "c_games", 80, "2026-10-15"),
   row("e7", "c_coffee", 30, "2026-09-10"),
   row("e8", "c_gone", 999, "2026-11-04"),
+  row("e9", "c_clothes", 60, "2026-09-11", {
+    savingsItemId: "sv_extra",
+    deductFromSavings: false,
+  }),
 ];
 
 /* ------------------------------ 基础工具 ------------------------------ */
@@ -166,6 +176,20 @@ check("趋势里上月是 80", overview.trend[4].total.CNY === 80);
 check("日均 = 本月 / 已过天数", Math.abs(overview.daily.CNY - 1649 / 3) < 1e-9);
 check("本月从储蓄里出的金额单独可见", overview.fromSavings.CNY === 300, JSON.stringify(overview.fromSavings));
 check("没关联储蓄的记录不计入 fromSavings", overview.fromSavings.GBP === undefined);
+check(
+  "只关联、不扣款的记录不算「来自储蓄」",
+  spendOverview(categories, entries, { month: "2026-09", today: "2026-09-30" }).fromSavings.CNY ===
+    undefined,
+  JSON.stringify(spendOverview(categories, entries, { month: "2026-09", today: "2026-09-30" }).fromSavings),
+);
+
+/* ---------------------- 关联 ≠ 扣款 ---------------------- */
+check("旧数据：有关联就按扣款处理", deductsFromSavings({ savingsItemId: "sv" }) === true);
+check(
+  "显式关闭扣款时只标记来源",
+  deductsFromSavings({ savingsItemId: "sv", deductFromSavings: false }) === false,
+);
+check("没关联就不扣款", deductsFromSavings({}) === false);
 
 /* --------------------------- 单币种下的占比 --------------------------- */
 const single = spendOverview(categories, entries.filter((row) => row.currency !== "GBP"), {
