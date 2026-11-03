@@ -52,6 +52,8 @@ export interface SpendOverview {
   count: number;
   daysElapsed: number;
   daily: MoneyMap;
+  /** 本月里有多少是从储蓄里出的 */
+  fromSavings: MoneyMap;
   /** 同币种环比（0.12 = 比上月多花 12%）；跨币种没有意义，返回 undefined */
   change?: number;
   categories: SpendCategoryStat[];
@@ -152,6 +154,7 @@ export function spendOverview(
 
   const thisMonthEntries = entries.filter((entry) => monthOf(entry.date) === month);
   const total = sumEntries(thisMonthEntries);
+  const fromSavings = sumEntries(thisMonthEntries.filter((entry) => Boolean(entry.savingsItemId)));
   const previous = spendMonthTotal(entries, previousMonth);
 
   const knownIds = new Set(categories.map((category) => category.id));
@@ -212,6 +215,7 @@ export function spendOverview(
     count: thisMonthEntries.length,
     daysElapsed,
     daily,
+    fromSavings,
     change: change === undefined ? undefined : change - 1,
     categories: categoriesStats,
     trend,

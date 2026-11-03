@@ -212,6 +212,7 @@ export function SavingsPage() {
               const pct = target > 0 ? Math.min(100, (current / target) * 100) : 0;
               const months = envelopeMonths(envelope);
               const done = target > 0 && current >= target;
+              const txs = savingTxFor(envelope.id, data.savingsTx).slice(0, 3);
               return (
                 <Card key={envelope.id} className="p-5">
                   <div className="flex items-start justify-between gap-3">
@@ -279,6 +280,33 @@ export function SavingsPage() {
                     <Plus className="size-3.5" />
                     记录变动
                   </Button>
+
+                  {txs.length > 0 && (
+                    <div className="mt-4 divide-y divide-border/70 border-t border-border/70 pt-1">
+                      {txs.map((tx) => (
+                        <div key={tx.id} className="flex items-center justify-between gap-3 py-2">
+                          <span className="min-w-0">
+                            <span className="block truncate text-[13px] text-foreground">
+                              {tx.reason}
+                            </span>
+                            <span className="text-[11.5px] text-muted-foreground numeral">
+                              {fmtDate(tx.date)}
+                            </span>
+                          </span>
+                          <span
+                            className={
+                              tx.amount >= 0
+                                ? "numeral shrink-0 text-[13.5px] font-medium text-primary"
+                                : "numeral shrink-0 text-[13.5px] font-medium text-foreground/75"
+                            }
+                          >
+                            {tx.amount >= 0 ? "+" : "−"}
+                            {fmtMoney(Math.abs(tx.amount), { currency: tx.currency ?? envelope.currency })}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </Card>
               );
             })}

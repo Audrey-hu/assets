@@ -145,6 +145,14 @@ export function SpendingPage() {
                   </span>
                 </>
               )}
+              {hasMoney(overview.fromSavings) && (
+                <>
+                  <span className="text-border">·</span>
+                  <span>
+                    其中 <Money map={overview.fromSavings} className="text-foreground/80" /> 来自储蓄
+                  </span>
+                </>
+              )}
             </div>
           </div>
 
@@ -422,6 +430,12 @@ export function SpendingPage() {
                             {entry.tag && (
                               <span className="ml-2 rounded-full bg-secondary px-1.5 py-0.5 text-[11px] font-normal text-muted-foreground">
                                 {entry.tag}
+                              </span>
+                            )}
+                            {entry.savingsItemId && (
+                              <span className="ml-2 rounded-full bg-accent px-1.5 py-0.5 text-[11px] font-normal text-accent-foreground">
+                                {data.savings.find((item) => item.id === entry.savingsItemId)?.name ??
+                                  "储蓄"}
                               </span>
                             )}
                           </span>

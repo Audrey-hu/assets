@@ -722,38 +722,139 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const deleteSpendCategory = useCallback(
     async (id: ID) => {
       const doomed = data.spendEntries.filter((entry) => entry.categoryId === id);
+      const now = new Date().toISOString();
+      /* 这些记录如果是从储蓄里出的，删分类时要把钱还回去 */
+      const restored = new Map<ID, SavingsItem>();
+      for (const entry of doomed) {
+        if (!entry.savingsItemId) continue;
+        const item = restored.get(entry.savingsItemId) ?? data.savings.find((s) => s.id === entry.savingsItemId);
+        if (!item) continue;
+        restored.set(item.id, {
+          ...item,
+          current: (item.current ?? 0) + entry.amount,
+          updatedAt: now,
+        });
+      }
       await Promise.all([
         deleteRecord("spendCategories", id),
         deleteMany("spendEntries", doomed.map((entry) => entry.id)),
+        deleteMany("savingsTx", doomed.map((entry) => `stx_spend_${entry.id}`)),
+        ...[...restored.values()].map((item) => putRecord("savings", item)),
       ]);
       setData((prev) => ({
         ...prev,
         spendCategories: prev.spendCategories.filter((c) => c.id !== id),
         spendEntries: prev.spendEntries.filter((entry) => entry.categoryId !== id),
+        savings: prev.savings.map((item) => restored.get(item.id) ?? item),
+        savingsTx: prev.savingsTx.filter(
+          (tx) => !doomed.some((entry) => `stx_spend_${entry.id}` === tx.id),
+        ),
       }));
       notify("分类和它的记录都已删除");
     },
-    [data.spendEntries, notify],
+    [data.savings, data.spendEntries, notify],
   );
 
-  const saveSpendEntry = useCallback(async (entry: SpendEntry) => {
-    const next = { ...entry, updatedAt: new Date().toISOString() };
-    await putRecord("spendEntries", next);
-    setData((prev) => {
-      const exists = prev.spendEntries.some((e) => e.id === next.id);
-      return {
-        ...prev,
-        spendEntries: exists
-          ? prev.spendEntries.map((e) => (e.id === next.id ? next : e))
-          : [...prev.spendEntries, next],
-      };
-    });
-  }, []);
+  /**
+   * 保存一笔开销，并处理它和储蓄的关系。
+   *
+   * 规则很简单，但要保证「编辑 / 改关联 / 删除」都能原路退回：
+   *   1. 先把上一版关联扣掉的钱加回去；
+   *   2. 再按新版从对应储蓄里扣；
+   *   3. 同一笔开销固定用一条 `stx_spend_<id>` 的流水，改多少次都不会堆出一串。
+   */
+  const saveSpendEntry = useCallback(
+    async (entry: SpendEntry) => {
+      const now = new Date().toISOString();
+      const next = { ...entry, updatedAt: now };
+      const previous = data.spendEntries.find((item) => item.id === next.id);
+      const txId = `stx_spend_${next.id}`;
 
-  const deleteSpendEntry = useCallback(async (id: ID) => {
-    await deleteRecord("spendEntries", id);
-    setData((prev) => ({ ...prev, spendEntries: prev.spendEntries.filter((e) => e.id !== id) }));
-  }, []);
+      /* 在内存里先算一遍，避免两次读写之间拿到旧余额 */
+      const savings = new Map(data.savings.map((item) => [item.id, { ...item }]));
+      const touched = new Set<ID>();
+
+      if (previous?.savingsItemId) {
+        const item = savings.get(previous.savingsItemId);
+        if (item) {
+          item.current = (item.current ?? 0) + previous.amount;
+          item.updatedAt = now;
+          touched.add(item.id);
+        }
+      }
+
+      let spendTx: SavingsTx | undefined;
+      if (next.savingsItemId) {
+        const item = savings.get(next.savingsItemId);
+        if (item) {
+          item.current = Math.max(0, (item.current ?? 0) - next.amount);
+          item.updatedAt = now;
+          touched.add(item.id);
+          const category = data.spendCategories.find((c) => c.id === next.categoryId);
+          spendTx = {
+            id: txId,
+            itemId: item.id,
+            amount: -Math.abs(next.amount),
+            currency: next.currency,
+            reason: `开销 · ${category?.name ?? "未分类"}${next.tag ? ` · ${next.tag}` : ""}`,
+            date: next.date,
+            createdAt: previous?.createdAt ?? now,
+          };
+        }
+      }
+
+      await putRecord("spendEntries", next);
+      if (spendTx) await putRecord("savingsTx", spendTx);
+      else if (previous?.savingsItemId) await deleteRecord("savingsTx", txId);
+      for (const id of touched) {
+        const item = savings.get(id);
+        if (item) await putRecord("savings", item);
+      }
+
+      setData((prev) => {
+        const exists = prev.spendEntries.some((e) => e.id === next.id);
+        return {
+          ...prev,
+          spendEntries: exists
+            ? prev.spendEntries.map((e) => (e.id === next.id ? next : e))
+            : [...prev.spendEntries, next],
+          savings: prev.savings.map((item) => (touched.has(item.id) ? savings.get(item.id)! : item)),
+          savingsTx: spendTx
+            ? [...prev.savingsTx.filter((tx) => tx.id !== txId), spendTx]
+            : prev.savingsTx.filter((tx) => tx.id !== txId),
+        };
+      });
+    },
+    [data.savings, data.spendCategories, data.spendEntries],
+  );
+
+  const deleteSpendEntry = useCallback(
+    async (id: ID) => {
+      const target = data.spendEntries.find((entry) => entry.id === id);
+      const now = new Date().toISOString();
+      let restored: SavingsItem | undefined;
+
+      if (target?.savingsItemId) {
+        const item = data.savings.find((s) => s.id === target.savingsItemId);
+        if (item) {
+          restored = { ...item, current: (item.current ?? 0) + target.amount, updatedAt: now };
+          await putRecord("savings", restored);
+        }
+        await deleteRecord("savingsTx", `stx_spend_${id}`);
+      }
+
+      await deleteRecord("spendEntries", id);
+      setData((prev) => ({
+        ...prev,
+        spendEntries: prev.spendEntries.filter((entry) => entry.id !== id),
+        savings: restored
+          ? prev.savings.map((item) => (item.id === restored!.id ? restored! : item))
+          : prev.savings,
+        savingsTx: prev.savingsTx.filter((tx) => tx.id !== `stx_spend_${id}`),
+      }));
+    },
+    [data.savings, data.spendEntries],
+  );
 
   /* ------------------------------- photos ------------------------------ */
 

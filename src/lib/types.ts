@@ -348,6 +348,12 @@ export interface SpendEntry {
   tag?: string;
   amount: number;
   currency?: CurrencyCode;
+  /**
+   * 这笔钱从哪个储蓄里出（可选）。
+   * 关联后会在这笔开销保存时扣减该储蓄余额，并留一条可追溯的取出流水；
+   * 编辑或删除这笔开销时，会自动把钱还回去。
+   */
+  savingsItemId?: ID;
   /** YYYY-MM-DD */
   date: string;
   note?: string;

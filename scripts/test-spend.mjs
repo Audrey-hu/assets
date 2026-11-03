@@ -109,7 +109,7 @@ const entries = [
   row("e1", "c_games", 100, "2026-11-01", { tag: "买游戏" }),
   row("e2", "c_games", 50, "2026-11-02", { tag: "皮肤道具" }),
   row("e3", "c_games", 12, "2026-11-03", { currency: "GBP", tag: "买游戏" }),
-  row("e4", "c_clothes", 300, "2026-11-02", { tag: "妈妈买的" }),
+  row("e4", "c_clothes", 300, "2026-11-02", { tag: "妈妈买的", savingsItemId: "sv_trip" }),
   row("e5", "c_clothes", 200, "2026-11-05", { tag: "自己买的" }),
   row("e6", "c_games", 80, "2026-10-15"),
   row("e7", "c_coffee", 30, "2026-09-10"),
@@ -164,6 +164,8 @@ check("趋势固定 6 个月", overview.trend.length === 6);
 check("趋势以本月结尾", overview.trend[5].month === "2026-11");
 check("趋势里上月是 80", overview.trend[4].total.CNY === 80);
 check("日均 = 本月 / 已过天数", Math.abs(overview.daily.CNY - 1649 / 3) < 1e-9);
+check("本月从储蓄里出的金额单独可见", overview.fromSavings.CNY === 300, JSON.stringify(overview.fromSavings));
+check("没关联储蓄的记录不计入 fromSavings", overview.fromSavings.GBP === undefined);
 
 /* --------------------------- 单币种下的占比 --------------------------- */
 const single = spendOverview(categories, entries.filter((row) => row.currency !== "GBP"), {

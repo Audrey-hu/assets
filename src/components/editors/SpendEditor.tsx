@@ -4,7 +4,7 @@ import { SheetBody, SheetContent, SheetFooter, SheetHeader } from "@/components/
 import { Button } from "@/components/ui/button";
 import { Chip, Field, Input, Textarea } from "@/components/ui/form";
 import { AccentPicker, CurrencyPicker, EmojiPicker, MoneyInput } from "./fields";
-import { sumMoney, todayISO } from "@/lib/format";
+import { fmtMoney, sumMoney, todayISO } from "@/lib/format";
 import { Money } from "@/components/ui/money";
 import { useApp } from "@/store/app-store";
 import { useUI } from "@/store/ui-store";
@@ -214,6 +214,7 @@ export function SpendEntryEditor() {
   const [categoryId, setCategoryId] = useState("");
   const [amount, setAmount] = useState<number | undefined>();
   const [currency, setCurrency] = useState<CurrencyCode>("CNY");
+  const [savingsItemId, setSavingsItemId] = useState("");
   const [date, setDate] = useState(todayISO());
   const [tag, setTag] = useState("");
   const [note, setNote] = useState("");
@@ -226,6 +227,7 @@ export function SpendEntryEditor() {
     setCategoryId(initial.categoryId ?? data.spendCategories[0]?.id ?? "");
     setAmount(initial.amount);
     setCurrency(initial.currency ?? settings.currency);
+    setSavingsItemId(initial.savingsItemId ?? "");
     setDate(initial.date ?? todayISO());
     setTag(initial.tag ?? "");
     setNote(initial.note ?? "");
@@ -237,6 +239,25 @@ export function SpendEntryEditor() {
 
   const category = data.spendCategories.find((item) => item.id === categoryId);
   const suggestions = category?.tags ?? [];
+
+  /* 只有「还有余额」的储蓄能作为来源，并且币种要对得上 */
+  const savingsOptions = useMemo(
+    () =>
+      data.savings.filter(
+        (item) =>
+          (item.kind === "envelope" || item.kind === "reservoir" || item.kind === "emergency") &&
+          (item.currency ?? settings.currency) === currency,
+      ),
+    [data.savings, currency, settings.currency],
+  );
+  const savingsItem = savingsOptions.find((item) => item.id === savingsItemId);
+  /* 编辑时这笔钱已经扣过了，判断余额要先把旧的那笔加回来 */
+  const savingsAvailable = savingsItem
+    ? (savingsItem.current ?? 0) +
+      (initial.id && initial.savingsItemId === savingsItem.id ? (initial.amount ?? 0) : 0)
+    : 0;
+  const insufficient =
+    Boolean(savingsItem) && amount !== undefined && amount > savingsAvailable + 0.004;
 
   async function createCategoryInline() {
     const name = newCategoryName.trim();
@@ -266,6 +287,10 @@ export function SpendEntryEditor() {
       setError("填写金额。");
       return;
     }
+    if (insufficient) {
+      setError("这个储蓄里的余额不够，换个来源或先补一点。");
+      return;
+    }
     const now = new Date().toISOString();
     await saveSpendEntry({
       id: initial.id ?? uid("spe"),
@@ -273,6 +298,7 @@ export function SpendEntryEditor() {
       tag: tag.trim() || undefined,
       amount,
       currency,
+      savingsItemId: savingsItemId || undefined,
       date,
       note: note.trim() || undefined,
       createdAt: initial.createdAt ?? now,
@@ -330,8 +356,56 @@ export function SpendEntryEditor() {
             <Field label="金额">
               <MoneyInput value={amount} onChange={setAmount} currency={currency} />
             </Field>
-            <CurrencyPicker value={currency} onChange={setCurrency} />
+            <CurrencyPicker
+              value={currency}
+              onChange={(next) => {
+                setCurrency(next);
+                /* 换了币种，原来选中的储蓄就对不上了 */
+                if (savingsItem && (savingsItem.currency ?? settings.currency) !== next) {
+                  setSavingsItemId("");
+                }
+              }}
+            />
           </div>
+
+          <Field label="从储蓄里出" hint="可选。记完自动扣减，改或删会自动退回">
+            <div className="flex flex-wrap gap-1.5">
+              <Chip active={!savingsItemId} onClick={() => setSavingsItemId("")}>
+                不关联
+              </Chip>
+              {savingsOptions.map((item) => (
+                <Chip
+                  key={item.id}
+                  active={savingsItemId === item.id}
+                  onClick={() => setSavingsItemId(savingsItemId === item.id ? "" : item.id)}
+                >
+                  <span aria-hidden>{item.emoji ?? (item.kind === "envelope" ? "🐷" : "💰")}</span>
+                  {item.name} · {fmtMoney(item.current ?? 0, { currency: item.currency })}
+                </Chip>
+              ))}
+            </div>
+            {savingsOptions.length === 0 && (
+              <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">
+                没有同币种的储蓄可选。先到 Ledger → 储蓄里建一个小荷包，或把币种改一致。
+              </p>
+            )}
+            {savingsItem && (
+              <p
+                className={
+                  insufficient
+                    ? "mt-2 text-[12.5px] leading-relaxed text-destructive"
+                    : "mt-2 text-[12.5px] leading-relaxed text-muted-foreground"
+                }
+              >
+                {savingsItem.name} 现在 {fmtMoney(savingsAvailable, { currency: savingsItem.currency })}
+                {amount !== undefined && amount > 0
+                  ? ` → 记完还剩 ${fmtMoney(Math.max(0, savingsAvailable - amount), {
+                      currency: savingsItem.currency,
+                    })}`
+                  : ""}
+              </p>
+            )}
+          </Field>
 
           <Field label="日期">
             <Input type="date" value={date} onChange={(event) => setDate(event.target.value)} />
