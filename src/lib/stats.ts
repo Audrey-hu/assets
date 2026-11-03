@@ -32,6 +32,8 @@ import type {
   SavingsItem,
   SavingsSnapshot,
   SavingsTx,
+  SpendCategory,
+  SpendEntry,
   Stage,
   TimeCategory,
 } from "./types";
@@ -49,6 +51,8 @@ export interface Dataset {
   savingsTx: SavingsTx[];
   snapshots: SavingsSnapshot[];
   investments: Investment[];
+  spendCategories: SpendCategory[];
+  spendEntries: SpendEntry[];
 }
 
 export function eventMinutes(e: LifeEvent): number {

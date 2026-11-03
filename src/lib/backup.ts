@@ -17,7 +17,7 @@ async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
 }
 
 export async function buildBackup(): Promise<BackupFile> {
-  const [hobbies, journeys, stages, events, courses, incomes, assets, savings, investments, savingsTx, snapshots, photos] =
+  const [hobbies, journeys, stages, events, courses, incomes, assets, savings, investments, savingsTx, snapshots, spendCategories, spendEntries, photos] =
     await Promise.all([
       getAll("hobbies"),
       getAll("journeys"),
@@ -30,6 +30,8 @@ export async function buildBackup(): Promise<BackupFile> {
       getAll("investments"),
       getAll("savingsTx"),
       getAll("snapshots"),
+      getAll("spendCategories"),
+      getAll("spendEntries"),
       getAll("photos"),
     ]);
 
@@ -60,6 +62,8 @@ export async function buildBackup(): Promise<BackupFile> {
       investments,
       savingsTx,
       snapshots,
+      spendCategories,
+      spendEntries,
       photos: encodedPhotos,
     },
   };
@@ -97,6 +101,8 @@ export async function importBackup(file: File): Promise<Settings> {
     putMany("investments", refreshed(parsed.data.investments)),
     putMany("savingsTx", refreshed(parsed.data.savingsTx)),
     putMany("snapshots", refreshed(parsed.data.snapshots)),
+    putMany("spendCategories", refreshed(parsed.data.spendCategories)),
+    putMany("spendEntries", refreshed(parsed.data.spendEntries)),
   ]);
 
   const photos: Photo[] = await Promise.all(

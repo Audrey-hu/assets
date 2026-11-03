@@ -31,6 +31,8 @@ const SYNCED_STORES: StoreName[] = [
   "investments",
   "savingsTx",
   "snapshots",
+  "spendCategories",
+  "spendEntries",
 ];
 
 /** 一次网络往返取多少行 */

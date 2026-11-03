@@ -12,6 +12,8 @@ import type {
   SavingsSnapshot,
   SavingsTx,
   Settings,
+  SpendCategory,
+  SpendEntry,
   Stage,
 } from "./types";
 import { defaultSettings, saveSettings } from "./settings";
@@ -994,6 +996,83 @@ export function buildDemoData(today = new Date()): Dataset {
     },
   );
 
+  /* ------------------------------ 开销 ------------------------------ */
+  const spendCategories: SpendCategory[] = [
+    {
+      id: "sp_games",
+      name: "游戏",
+      emoji: "🎮",
+      accent: "clay",
+      monthlyBudget: 300,
+      budgetCurrency: "CNY",
+      tags: ["买游戏", "皮肤道具"],
+      note: "只记真正花在游戏上的钱。",
+      createdAt: ISO(subDays(today, 200)),
+      updatedAt: ISO(subDays(today, 10)),
+    },
+    {
+      id: "sp_clothes",
+      name: "衣服",
+      emoji: "🧥",
+      accent: "sand",
+      monthlyBudget: 800,
+      budgetCurrency: "CNY",
+      tags: ["自己买的", "妈妈买的"],
+      createdAt: ISO(subDays(today, 200)),
+      updatedAt: ISO(subDays(today, 8)),
+    },
+    {
+      id: "sp_coffee",
+      name: "咖啡",
+      emoji: "☕️",
+      accent: "sage",
+      monthlyBudget: 200,
+      budgetCurrency: "CNY",
+      tags: ["工作日", "周末"],
+      createdAt: ISO(subDays(today, 180)),
+      updatedAt: ISO(subDays(today, 3)),
+    },
+  ];
+
+  const spendEntry = (
+    id: string,
+    categoryId: string,
+    amount: number,
+    daysAgo: number,
+    tag?: string,
+    note?: string,
+    currency: SpendEntry["currency"] = "CNY",
+  ): SpendEntry => ({
+    id,
+    categoryId,
+    tag,
+    amount,
+    currency,
+    date: DAY(subDays(today, daysAgo)),
+    note,
+    createdAt: ISO(subDays(today, daysAgo)),
+    updatedAt: ISO(subDays(today, daysAgo)),
+  });
+
+  const spendEntries: SpendEntry[] = [
+    spendEntry("sp_e1", "sp_games", 68, 2, "买游戏", "独立游戏合集"),
+    spendEntry("sp_e2", "sp_games", 45, 9, "皮肤道具"),
+    spendEntry("sp_e3", "sp_games", 128, 33, "买游戏", "Steam 秋季特卖"),
+    spendEntry("sp_e4", "sp_games", 12, 20, "买游戏", "英国区买的小品游戏", "GBP"),
+    spendEntry("sp_e5", "sp_clothes", 420, 5, "自己买的", "冬天的大衣"),
+    spendEntry("sp_e6", "sp_clothes", 260, 26, "妈妈买的"),
+    spendEntry("sp_e7", "sp_clothes", 199, 62, "自己买的"),
+    spendEntry("sp_e8", "sp_clothes", 350, 95, "妈妈买的", "过年的外套"),
+    spendEntry("sp_e9", "sp_coffee", 32, 1, "工作日"),
+    spendEntry("sp_e10", "sp_coffee", 28, 4, "工作日"),
+    spendEntry("sp_e11", "sp_coffee", 45, 8, "周末", "和朋友一起"),
+    spendEntry("sp_e12", "sp_coffee", 30, 12, "工作日"),
+    spendEntry("sp_e13", "sp_coffee", 58, 40, "周末"),
+    spendEntry("sp_e14", "sp_games", 98, 70, "买游戏"),
+    spendEntry("sp_e15", "sp_clothes", 180, 130, "自己买的"),
+    spendEntry("sp_e16", "sp_coffee", 26, 75, "工作日"),
+  ];
+
   /* --------------------------- attach photos ------------------------ */
   const attachLatest = (predicate: (event: LifeEvent) => boolean, photoId: string) => {
     const found = [...events].reverse().find(predicate);
@@ -1022,6 +1101,8 @@ export function buildDemoData(today = new Date()): Dataset {
     savingsTx,
     snapshots,
     investments,
+    spendCategories,
+    spendEntries,
   };
 }
 
@@ -1038,6 +1119,9 @@ export async function seedDemoData(): Promise<Settings> {
     putMany("savings", dataset.savings),
     putMany("savingsTx", dataset.savingsTx),
     putMany("snapshots", dataset.snapshots),
+    putMany("investments", dataset.investments),
+    putMany("spendCategories", dataset.spendCategories),
+    putMany("spendEntries", dataset.spendEntries),
   ]);
   await setMeta("seeded", true);
   const settings: Settings = { ...defaultSettings, demoSeeded: true };

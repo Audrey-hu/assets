@@ -33,7 +33,11 @@ function Routing() {
       return param ? <HobbyDetailPage hobbyId={param} /> : <JourneyTabPage segment="hobbies" />;
     case "ledger": {
       const section: LedgerSection =
-        param === "income" || param === "time" || param === "savings" || param === "investing"
+        param === "income" ||
+        param === "time" ||
+        param === "savings" ||
+        param === "investing" ||
+        param === "spend"
           ? param
           : "savings";
       return <LedgerPage section={section} />;

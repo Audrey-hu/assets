@@ -11,6 +11,7 @@
     "test:sync": "node scripts/test-sync.mjs",
     "test:db": "node scripts/test-db.mjs",
     "test:quotes": "node scripts/test-quotes.mjs",
+    "test:spend": "node scripts/test-spend.mjs",
     "preview": "vite preview --port 4173",
     "typecheck": "tsc -b --noEmit"
   },

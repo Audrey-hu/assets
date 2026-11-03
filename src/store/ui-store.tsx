@@ -14,7 +14,9 @@ export type ModalName =
   | "asset"
   | "savings"
   | "investment"
-  | "savingsTx";
+  | "savingsTx"
+  | "spendCategory"
+  | "spendEntry";
 
 export interface ConfirmRequest {
   title: string;
@@ -99,6 +101,9 @@ export function useEditors() {
       newSavings: (payload: Record<string, unknown> = {}) => openModal("savings", payload),
       newInvestment: (payload: Record<string, unknown> = {}) => openModal("investment", payload),
       newSavingsTx: (payload: Record<string, unknown> = {}) => openModal("savingsTx", payload),
+      newSpendCategory: (payload: Record<string, unknown> = {}) =>
+        openModal("spendCategory", payload),
+      newSpendEntry: (payload: Record<string, unknown> = {}) => openModal("spendEntry", payload),
     }),
     [openModal],
   );

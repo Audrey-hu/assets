@@ -13,6 +13,7 @@ import { IncomeEditor } from "@/components/editors/IncomeEditor";
 import { AssetEditor } from "@/components/editors/AssetEditor";
 import { SavingsEditor, SavingsTxEditor } from "@/components/editors/SavingsEditor";
 import { InvestmentEditor } from "@/components/editors/InvestmentEditor";
+import { SpendCategoryEditor, SpendEntryEditor } from "@/components/editors/SpendEditor";
 
 export function ConfirmDialog() {
   const { confirm, closeConfirm } = useUI();
@@ -60,6 +61,8 @@ export function Overlays() {
       <SavingsEditor />
       <InvestmentEditor />
       <SavingsTxEditor />
+      <SpendCategoryEditor />
+      <SpendEntryEditor />
       <ConfirmDialog />
       <SessionSummarySheet />
       <FocusTimerOverlay />

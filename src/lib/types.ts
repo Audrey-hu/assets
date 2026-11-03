@@ -318,6 +318,44 @@ export interface SavingsSnapshot {
 }
 
 /* ------------------------------------------------------------------ *
+ * Spend — 只记「我在乎的那几类开销」，不是流水账。
+ *
+ * 和 Journey 里的投入是两件事：
+ *   - Journey / Hobby 的支出是「为了这件事我投了多少钱」，算投入产出；
+ *   - 这里的开销是「我想知道自己在哪些地方花了多少」，纯生活视角。
+ * 所以两边分开记、分开统计，不互相计入，也不做汇率折算。
+ * ------------------------------------------------------------------ */
+
+export interface SpendCategory {
+  id: ID;
+  name: string;
+  emoji?: string;
+  accent: AccentKey;
+  /** 每月预算；只跟 budgetCurrency 这一种币种比 */
+  monthlyBudget?: number;
+  budgetCurrency?: CurrencyCode;
+  /** 常用细分，比如 衣服 → 自己买的 / 妈妈买的 */
+  tags?: string[];
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SpendEntry {
+  id: ID;
+  categoryId: ID;
+  /** 细分标签，例如「妈妈买的」；不填就是「未细分」 */
+  tag?: string;
+  amount: number;
+  currency?: CurrencyCode;
+  /** YYYY-MM-DD */
+  date: string;
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/* ------------------------------------------------------------------ *
  * Photos live in IndexedDB as blobs and stay attached to records.
  * ------------------------------------------------------------------ */
 
@@ -359,6 +397,8 @@ export interface BackupFile {
     investments: Investment[];
     savingsTx: SavingsTx[];
     snapshots: SavingsSnapshot[];
+    spendCategories?: SpendCategory[];
+    spendEntries?: SpendEntry[];
     photos: { id: ID; name: string; mime: string; createdAt: string; dataUrl: string }[];
   };
 }

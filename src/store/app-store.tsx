@@ -39,6 +39,8 @@ import type {
   LifeEvent,
   SavingsItem,
   SavingsTx,
+  SpendCategory,
+  SpendEntry,
   Settings,
   Stage,
 } from "@/lib/types";
@@ -56,6 +58,8 @@ const EMPTY: Dataset = {
   savingsTx: [],
   snapshots: [],
   investments: [],
+  spendCategories: [],
+  spendEntries: [],
 };
 
 export interface Toast {
@@ -98,6 +102,10 @@ interface AppContextValue {
   deleteSavingsTx: (id: ID) => Promise<void>;
   saveInvestment: (item: Investment) => Promise<void>;
   deleteInvestment: (id: ID) => Promise<void>;
+  saveSpendCategory: (category: SpendCategory) => Promise<void>;
+  deleteSpendCategory: (id: ID) => Promise<void>;
+  saveSpendEntry: (entry: SpendEntry) => Promise<void>;
+  deleteSpendEntry: (id: ID) => Promise<void>;
 
   addPhotos: (files: File[], ownerEventId?: ID) => Promise<ID[]>;
   deletePhotos: (ids: ID[]) => Promise<void>;
@@ -161,7 +169,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const load = useCallback(async () => {
-    const [hobbies, journeys, stages, events, courses, incomes, assets, savings, investments, savingsTx, snapshots] =
+    const [hobbies, journeys, stages, events, courses, incomes, assets, savings, investments, savingsTx, snapshots, spendCategories, spendEntries] =
       await Promise.all([
         getAll("hobbies"),
         getAll("journeys"),
@@ -174,6 +182,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         getAll("investments"),
         getAll("savingsTx"),
         getAll("snapshots"),
+        getAll("spendCategories"),
+        getAll("spendEntries"),
       ]);
     return {
       hobbies,
@@ -187,6 +197,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       investments,
       savingsTx,
       snapshots,
+      spendCategories,
+      spendEntries,
     };
   }, []);
 
@@ -286,6 +298,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     if (dataset.courses.some((s) => !s.currency)) {
       jobs.push(putMany("courses", stamp(dataset.courses) as never));
+    }
+    if (dataset.spendEntries.some((s) => !s.currency)) {
+      jobs.push(putMany("spendEntries", stamp(dataset.spendEntries) as never));
     }
     await Promise.all(jobs);
     await setMeta("currencyStamped", true);
@@ -684,6 +699,62 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  /* ------------------------------- spend ------------------------------- */
+
+  const saveSpendCategory = useCallback(async (category: SpendCategory) => {
+    const next = { ...category, updatedAt: new Date().toISOString() };
+    await putRecord("spendCategories", next);
+    setData((prev) => {
+      const exists = prev.spendCategories.some((c) => c.id === next.id);
+      return {
+        ...prev,
+        spendCategories: exists
+          ? prev.spendCategories.map((c) => (c.id === next.id ? next : c))
+          : [...prev.spendCategories, next],
+      };
+    });
+  }, []);
+
+  /**
+   * 删分类时把它的记录一起删掉。
+   * 留着"没有分类的记录"只会让统计里多出一块无法解释的金额。
+   */
+  const deleteSpendCategory = useCallback(
+    async (id: ID) => {
+      const doomed = data.spendEntries.filter((entry) => entry.categoryId === id);
+      await Promise.all([
+        deleteRecord("spendCategories", id),
+        deleteMany("spendEntries", doomed.map((entry) => entry.id)),
+      ]);
+      setData((prev) => ({
+        ...prev,
+        spendCategories: prev.spendCategories.filter((c) => c.id !== id),
+        spendEntries: prev.spendEntries.filter((entry) => entry.categoryId !== id),
+      }));
+      notify("分类和它的记录都已删除");
+    },
+    [data.spendEntries, notify],
+  );
+
+  const saveSpendEntry = useCallback(async (entry: SpendEntry) => {
+    const next = { ...entry, updatedAt: new Date().toISOString() };
+    await putRecord("spendEntries", next);
+    setData((prev) => {
+      const exists = prev.spendEntries.some((e) => e.id === next.id);
+      return {
+        ...prev,
+        spendEntries: exists
+          ? prev.spendEntries.map((e) => (e.id === next.id ? next : e))
+          : [...prev.spendEntries, next],
+      };
+    });
+  }, []);
+
+  const deleteSpendEntry = useCallback(async (id: ID) => {
+    await deleteRecord("spendEntries", id);
+    setData((prev) => ({ ...prev, spendEntries: prev.spendEntries.filter((e) => e.id !== id) }));
+  }, []);
+
   /* ------------------------------- photos ------------------------------ */
 
   const addPhotos = useCallback(async (files: File[]) => {
@@ -734,6 +805,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       "investments",
       "savingsTx",
       "snapshots",
+      "spendCategories",
+      "spendEntries",
       "photos",
     ]);
     /* 清空之后要留下「已初始化」的标记，否则刷新又会自动灌一次示例数据 */
@@ -757,6 +830,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       putMany("investments", demo.investments),
       putMany("savingsTx", demo.savingsTx),
       putMany("snapshots", demo.snapshots),
+      putMany("spendCategories", demo.spendCategories),
+      putMany("spendEntries", demo.spendEntries),
     ]);
     setData(demo);
     notify("示例数据已载入", "success");
@@ -795,6 +870,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       deleteSavingsTx,
       saveInvestment,
       deleteInvestment,
+      saveSpendCategory,
+      deleteSpendCategory,
+      saveSpendEntry,
+      deleteSpendEntry,
       addPhotos,
       deletePhotos,
       clearAllData,
@@ -832,6 +911,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       deleteSavingsTx,
       saveInvestment,
       deleteInvestment,
+      saveSpendCategory,
+      deleteSpendCategory,
+      saveSpendEntry,
+      deleteSpendEntry,
       addPhotos,
       deletePhotos,
       clearAllData,

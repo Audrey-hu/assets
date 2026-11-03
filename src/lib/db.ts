@@ -13,6 +13,8 @@ import type {
   SavingsItem,
   SavingsSnapshot,
   SavingsTx,
+  SpendCategory,
+  SpendEntry,
   Stage,
 } from "./types";
 
@@ -44,6 +46,12 @@ interface LifeLedgerDB extends DBSchema {
   investments: { key: string; value: Investment };
   savingsTx: { key: string; value: SavingsTx };
   snapshots: { key: string; value: SavingsSnapshot };
+  spendCategories: { key: string; value: SpendCategory };
+  spendEntries: {
+    key: string;
+    value: SpendEntry;
+    indexes: { byCategory: string; byDate: string };
+  };
   photos: { key: string; value: Photo };
   meta: { key: string; value: { key: string; value: unknown } };
 }
@@ -60,6 +68,8 @@ export type StoreName =
   | "investments"
   | "savingsTx"
   | "snapshots"
+  | "spendCategories"
+  | "spendEntries"
   | "photos";
 
 const DATA_STORES: StoreName[] = [
@@ -74,11 +84,13 @@ const DATA_STORES: StoreName[] = [
   "investments",
   "savingsTx",
   "snapshots",
+  "spendCategories",
+  "spendEntries",
 ];
 
 const DB_NAME = "lifeledger";
-/* 版本 2：新增 investments（理财） */
-const DB_VERSION = 2;
+/* 版本 3：新增 spendCategories / spendEntries（分类开销） */
+const DB_VERSION = 3;
 const LS_PREFIX = "ll.v1.";
 
 let dbPromise: Promise<IDBPDatabase<LifeLedgerDB>> | null = null;
@@ -109,6 +121,14 @@ function openDatabase() {
         if (!db.objectStoreNames.contains("investments")) db.createObjectStore("investments", { keyPath: "id" });
         if (!db.objectStoreNames.contains("savingsTx")) db.createObjectStore("savingsTx", { keyPath: "id" });
         if (!db.objectStoreNames.contains("snapshots")) db.createObjectStore("snapshots", { keyPath: "id" });
+        if (!db.objectStoreNames.contains("spendCategories")) {
+          db.createObjectStore("spendCategories", { keyPath: "id" });
+        }
+        if (!db.objectStoreNames.contains("spendEntries")) {
+          const s = db.createObjectStore("spendEntries", { keyPath: "id" });
+          s.createIndex("byCategory", "categoryId");
+          s.createIndex("byDate", "date");
+        }
         if (!db.objectStoreNames.contains("photos")) db.createObjectStore("photos", { keyPath: "id" });
         if (!db.objectStoreNames.contains("meta")) db.createObjectStore("meta", { keyPath: "key" });
       },

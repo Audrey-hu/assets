@@ -8,10 +8,12 @@ import { SavingsPage } from "./SavingsPage";
 import { IncomePage } from "./IncomePage";
 import { TimePage } from "./TimePage";
 import { InvestingPage } from "./InvestingPage";
+import { SpendingPage } from "./SpendingPage";
 
-export type LedgerSection = "savings" | "investing" | "income" | "time";
+export type LedgerSection = "spend" | "savings" | "investing" | "income" | "time";
 
 const TITLES: Record<LedgerSection, { subtitle: string }> = {
+  spend: { subtitle: "只记你在乎的那几类开销" },
   savings: { subtitle: "存款、备用金与蓄水池" },
   investing: { subtitle: "黄金、基金、股票、数字货币" },
   income: { subtitle: "下班之后赚到的钱" },
@@ -61,6 +63,7 @@ export function LedgerPage({ section }: { section: LedgerSection }) {
           value={section}
           onChange={(value) => navigate(`#/ledger/${value}`)}
           options={[
+            { value: "spend", label: "开销" },
             { value: "savings", label: "储蓄" },
             { value: "investing", label: "理财" },
             { value: "income", label: "收入" },
@@ -69,6 +72,7 @@ export function LedgerPage({ section }: { section: LedgerSection }) {
           className="max-w-md"
         />
       </div>
+      {section === "spend" && <SpendingPage />}
       {section === "savings" && <SavingsPage />}
       {section === "investing" && <InvestingPage />}
       {section === "income" && <IncomePage />}
